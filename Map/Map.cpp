@@ -141,11 +141,11 @@ MapSector* Map::findBestSector(Entity* entity) const {
 
 MapSector* Map::findBestSector(const Position& position) const {
 	uint16_t sectorX = static_cast<uint16_t>(std::roundf(static_cast<uint32_t>(position.getX() - SECTORS_START_COORDINATE) / SECTORS_SIZE));
-	if (sectorX > SECTORS_PER_AXIS) {
+	if (sectorX >= SECTORS_PER_AXIS) {
 		sectorX = SECTORS_PER_AXIS - 1;
 	}
 	uint16_t sectorY = static_cast<uint16_t>(std::roundf(static_cast<uint32_t>(position.getY() - SECTORS_START_COORDINATE) / SECTORS_SIZE));
-	if (sectorY > SECTORS_PER_AXIS) {
+	if (sectorY >= SECTORS_PER_AXIS) {
 		sectorY = SECTORS_PER_AXIS - 1;
 	}
 
