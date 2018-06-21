@@ -25,7 +25,14 @@ private:
 	void loadFileEntries();
 	void loadNpcDefaultValues();
 	void createMaps();
-	void spawnMonsters(Map* map, DirectoryParser& parser);
+	void loadIFOData(Map* map, DirectoryParser& parser);
+	void loadMonsters(Map* map, const class IFOFile& file);
+	void loadNPCs(Map* map, const class IFOFile& file);
+	void loadTelegates(Map* map, const class IFOFile& file);
+
+	std::shared_ptr<NPCDefaultStatValues> getNPCDefaultValue(const uint32_t id) const {
+		return (npcDefaultStatValues.find(id) == npcDefaultStatValues.cend() ? std::shared_ptr<NPCDefaultStatValues>() : npcDefaultStatValues.at(id));
+	}
 
 	bool teleportPlayer(Player* player, Map* map, const Position& pos);
 protected:

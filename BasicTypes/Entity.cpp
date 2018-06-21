@@ -12,7 +12,6 @@ Entity::Entity() {
 }
 
 Entity::~Entity() {
-	std::cout << "~ENTITY()\n";
 }
 
 bool Entity::updateMovement() {

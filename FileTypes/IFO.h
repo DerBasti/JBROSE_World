@@ -24,7 +24,7 @@ private:
 	Position position;
 	float z;
 	float scaling[3];
-private:
+
 	void readBasicStructure(FileReader& reader);
 protected:
 	virtual void readSpecialized(FileReader& reader);
@@ -32,6 +32,9 @@ public:
 	IFOEntry(FileReader& reader);
 	virtual ~IFOEntry();
 
+	__inline uint32_t getObjectId() const {
+		return objectId;
+	}
 	__inline float getDirection() const {
 		return direction;
 	}

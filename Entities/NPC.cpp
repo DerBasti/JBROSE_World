@@ -18,6 +18,8 @@ NPC::NPC(std::shared_ptr<NPCDefaultStatValues>& defaultValues, const Position& s
 	getLocationData()->getPositionCollection()->setDestinationPosition(spawnPosition);
 
 	defaultStatValues = defaultValues;
+
+	visualityProcessor = std::shared_ptr<VisualityProcessor>(new NPCVisualityProcessor(this));
 }
 
 NPC::~NPC() {

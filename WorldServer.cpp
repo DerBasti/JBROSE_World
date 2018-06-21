@@ -74,7 +74,7 @@ void WorldServer::createMaps() {
 		DirectoryParser parser((basicPath + path).c_str());
 		if (!path.empty() && parser.isDirectoryExistent()) {
 			std::cout << "Starting up Map[" << i << "].\n";
-			spawnMonsters(maps[i], parser);
+			loadIFOData(maps[i], parser);
 			mapThreads[i] = std::thread([this](Map* map) {
 				while (true) {
 					map->updateEntities();
@@ -85,33 +85,52 @@ void WorldServer::createMaps() {
 	}
 }
 
-void WorldServer::spawnMonsters(Map* map, DirectoryParser& parser) {
+void WorldServer::loadIFOData(Map* map, DirectoryParser& parser) {
 	parser.setFileExtension(".IFO");
 	auto files = parser.getFiles();
 	for (auto& file : files) {
 		IFOFile ifo(file);
-		if (!ifo.isTypedEntryExistent(IFOFile::BlockType::MONSTERSPAWN)) {
-			continue;
-		}
-		auto spawns = ifo.getTypedEntry(IFOFile::BlockType::MONSTERSPAWN);
-		for (auto& entry : spawns) {
-			IFOMonsterSpawnEntry* spawn = dynamic_cast<IFOMonsterSpawnEntry*>(entry.get());
-			uint32_t amount = 0;
-			uint32_t idx = 0;
-			auto basicRounds = spawn->getBasicRounds();
-			while(amount < spawn->getMaximumAmountOfMonsters()) {
-				auto round = basicRounds.at(idx);
-				for (uint16_t x = 0; x < round->getMonsterAmount(); x++) {
-					Position pos = spawn->getPosition();
-					pos.setX(pos.getX() + (rand() / static_cast<float>(RAND_MAX)) * spawn->getMaximumRadius());
-					pos.setY(pos.getY() + (rand() / static_cast<float>(RAND_MAX)) * spawn->getMaximumRadius());
-					map->addEntityToInsertionQueue(new Monster(npcDefaultStatValues.at(round->getMonsterId()), pos));
-					amount++;
-				}
-				idx++;
-				if (idx >= basicRounds.size()) {
-					idx = 0;
-				}
+		loadNPCs(map, ifo);
+		loadMonsters(map, ifo);
+	}
+}
+
+void WorldServer::loadNPCs(Map* map, const IFOFile& file) {
+	if (!file.isTypedEntryExistent(IFOFile::BlockType::NPCLOCATION)) {
+		return;
+	}
+	auto npcs = file.getTypedEntry(IFOFile::BlockType::NPCLOCATION);
+	for (auto& npcEntry : npcs) {
+		const Position& pos = npcEntry->getPosition();
+		auto npcDefaultValues = getNPCDefaultValue(npcEntry->getObjectId());
+		NPC* npc = new NPC(npcDefaultValues, pos);
+		npc->getLocationData()->getPositionCollection()->setDirection(npcEntry->getDirection());
+		map->addEntityToInsertionQueue(npc);
+	}
+}
+
+void WorldServer::loadMonsters(Map* map, const IFOFile& file) {
+	if (!file.isTypedEntryExistent(IFOFile::BlockType::MONSTERSPAWN)) {
+		return;
+	}
+	auto spawns = file.getTypedEntry(IFOFile::BlockType::MONSTERSPAWN);
+	for (auto& entry : spawns) {
+		IFOMonsterSpawnEntry* spawn = dynamic_cast<IFOMonsterSpawnEntry*>(entry.get());
+		uint32_t amount = 0;
+		uint32_t idx = 0;
+		auto basicRounds = spawn->getBasicRounds();
+		while (amount < spawn->getMaximumAmountOfMonsters()) {
+			auto round = basicRounds.at(idx);
+			for (uint16_t x = 0; x < round->getMonsterAmount(); x++) {
+				Position pos = spawn->getPosition();
+				pos.setX(pos.getX() + (rand() / static_cast<float>(RAND_MAX)) * spawn->getMaximumRadius());
+				pos.setY(pos.getY() + (rand() / static_cast<float>(RAND_MAX)) * spawn->getMaximumRadius());
+				map->addEntityToInsertionQueue(new Monster(npcDefaultStatValues.at(round->getMonsterId()), pos));
+				amount++;
+			}
+			idx++;
+			if (idx >= basicRounds.size()) {
+				idx = 0;
 			}
 		}
 	}
