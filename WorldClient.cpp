@@ -98,7 +98,7 @@ bool Player::handleAssignmentOfLocalId(const Packet* packet) {
 
 bool Player::handleChangedRespawnTown(const Packet* packet) {
 	const ChangeRespawnTownRequestPacket* respawnTownPacket = dynamic_cast<const ChangeRespawnTownRequestPacket*>(packet);
-	std::cout << "[ChandleChangedRespawnTown-DEBUG]: " << respawnTownPacket->toPrintable().c_str() << "\n";
+	std::cout << "[HandleChangedRespawnTown-DEBUG]: " << respawnTownPacket->toPrintable().c_str() << "\n";
 	return true;
 }
 
@@ -137,12 +137,27 @@ bool Player::handleTelegateEntered(const Packet* packet) {
 	return server->teleportPlayerFromTelegate(this, telegateId);
 }
 
+bool Player::handleCollision(const Packet* packet) {
+	const CollisionRequestPacket* collisionPacket = dynamic_cast<const CollisionRequestPacket*>(packet);
+	getLocationData()->getPositionCollection()->setCurrentPosition(collisionPacket->getCollisionPosition());
+	getLocationData()->getPositionCollection()->setDestinationPosition(collisionPacket->getCollisionPosition());
+
+	CollisionResponsePacket response;
+	response.setEntityLocalId(getLocationData()->getLocalId());
+	response.setCollisionPosition(getLocationData()->getPositionCollection()->getCurrentPosition());
+	response.setZ(collisionPacket->getZ());
+
+	return sendDataToVisible(response);
+}
 
 bool Player::handlePacket(const Packet* packet) {
 	bool success = false;
 	switch (packet->getCommandId()) {
 		case PingRequestPacket::ID:
 			success = true;
+		break;
+		case CollisionRequestPacket::ID:
+			success = handleCollision(packet);
 		break;
 		case IdentifyAccountRequestPacket::ID:
 			success = handleIdentification(packet);

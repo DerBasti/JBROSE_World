@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Requests\AssignLocalPlayerIdRequestPacket.h"
+#include "Requests/CollisionRequestPacket.h"
 #include "Requests\ChangeRespawnTownRequestPacket.h"
 #include "..\..\JBROSE_Common\RequestPackets\IdentifyAccountRequestPacket.h"
 #include "Requests\NewDestinationRequestPacket.h"

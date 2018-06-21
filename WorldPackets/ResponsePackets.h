@@ -4,6 +4,7 @@
 
 #include "Responses\AssignLocalPlayerIdResponsePacket.h"
 #include "Responses\CharacterDataResponsePacket.h"
+#include "Responses/CollisionResponsePacket.h"
 #include "Responses\CurrentWeightResponsePacket.h"
 #include "Responses/DespawnEntityVisuallyResponsePacket.h"
 #include "Responses\GamingPlanResponsePacket.h"

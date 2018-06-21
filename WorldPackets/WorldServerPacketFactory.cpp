@@ -3,6 +3,7 @@
 
 WorldServerPacketFactory::WorldServerPacketFactory() {
 	addCommand<AssignLocalPlayerIdRequestPacket>(AssignLocalPlayerIdRequestPacket::ID);
+	addCommand<CollisionRequestPacket>(CollisionRequestPacket::ID);
 	addCommand<ChangeRespawnTownRequestPacket>(ChangeRespawnTownRequestPacket::ID);
 	addCommand<IdentifyAccountRequestPacket>(IdentifyAccountRequestPacket::ID);
 	addCommand<NewDestinationRequestPacket>(NewDestinationRequestPacket::ID);

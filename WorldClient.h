@@ -184,6 +184,7 @@ private:
 protected:
 
 	bool handleAssignmentOfLocalId(const Packet* packet);
+	bool handleCollision(const Packet* packet);
 	bool handleChangedRespawnTown(const Packet* packet);
 	bool handleIdentification(const Packet* packet);
 	bool handleNewDestination(const Packet* packet);

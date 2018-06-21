@@ -47,7 +47,9 @@ public:
 class PositionCollection {
 private:
 	Position current;
+	std::mutex currentPositionMutex;
 	Position destination;
+	std::mutex destinationPositionMutex;
 	float direction;
 public:
 	PositionCollection();
@@ -60,12 +62,14 @@ public:
 		return current;
 	}
 	__inline void setCurrentPosition(const Position& current) {
+		std::lock_guard<std::mutex> lock(currentPositionMutex);
 		this->current = current;
 	}
 	__inline Position getDestinationPosition() const {
 		return destination;
 	}
 	__inline void setDestinationPosition(const Position& destination) {
+		std::lock_guard<std::mutex> lock(destinationPositionMutex);
 		this->destination = destination;
 	}
 	__inline void setDirection(const float dir) {
