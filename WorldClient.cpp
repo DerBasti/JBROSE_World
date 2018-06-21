@@ -122,12 +122,10 @@ bool Player::spawnVisually(Entity* entity) {
 }
 
 bool Player::despawnVisually(Entity* entity) {
-	std::cout << "DESPAWNING CALLED! DESPAWNING CALLED! DESPAWNING CALLED!\n";
 	return getConnectionWrapper()->sendData(DespawnEntityVisuallyResponsePacket(entity));
 }
 
 bool Player::despawnVisually(uint16_t localId) {
-	std::cout << "DESPAWNING CALLED! DESPAWNING CALLED! DESPAWNING CALLED!\n";
 	return getConnectionWrapper()->sendData(DespawnEntityVisuallyResponsePacket(localId));
 }
 
