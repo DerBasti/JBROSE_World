@@ -1,0 +1,9 @@
+#ifndef __CHANGE_RESPAWN_TOWN_RESPONSEPACKET__
+#define __CHANGE_RESPAWN_TOWN_RESPONSEPACKET__
+
+#pragma once
+
+#include "..\..\..\JBROSE_Common\Packet.h"
+
+
+#endif //__CHANGE_RESPAWN_TOWN_RESPONSEPACKET__
