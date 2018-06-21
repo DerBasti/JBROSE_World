@@ -5,6 +5,7 @@
 #include "..\WorldPackets\Responses\SpawnEntityVisuallyResponsePacket.h"
 #include "..\WorldPackets\Responses\SpawnPlayerVisuallyResponsePacket.h"
 #include "..\WorldPackets\Responses\SpawnMonsterVisuallyResponsePacket.h"
+#include "..\WorldPackets\Responses\SpawnNPCVisuallyResponsePacket.h"
 #include "..\Map\Map.h"
 #include "..\Map\MapSector.h"
 #include <iostream>
@@ -80,8 +81,7 @@ NPCVisualityProcessor::~NPCVisualityProcessor() {
 }
 
 std::shared_ptr<SpawnEntityVisuallyResponsePacket> NPCVisualityProcessor::createSpawnVisuallyPacket() {
-	throw;
-	return std::shared_ptr<SpawnEntityVisuallyResponsePacket>();
+	return std::shared_ptr<SpawnNPCVisuallyResponsePacket>(new SpawnNPCVisuallyResponsePacket(dynamic_cast<NPC*>(getEntity())));
 }
 
 /*
