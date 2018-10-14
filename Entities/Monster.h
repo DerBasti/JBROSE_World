@@ -6,7 +6,7 @@
 
 class Monster : public NPC {
 public:
-	Monster(std::shared_ptr<NPCDefaultStatValues>& defaultValues, const Position& spawnPosition);
+	Monster(NPCDefaultStatValues* defaultValues, const Position& spawnPosition);
 	virtual ~Monster();
 
 	__inline bool isMonster() const {

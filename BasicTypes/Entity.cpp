@@ -6,12 +6,20 @@
 #include <iostream>
 
 Entity::Entity() {
-	locationData = std::shared_ptr<LocationData>(new LocationData());
-	positionProcessor = std::shared_ptr<PositionProcessor>(new PositionProcessor(getLocationData()->getPositionCollection()));
+	locationData = new LocationData();
+	positionProcessor = new PositionProcessor(getLocationData()->getPositionCollection());
 	ingameFlag = false;
 }
 
 Entity::~Entity() {
+	std::cout << "Deconstructing Entity...\n";
+	delete locationData;
+	locationData = nullptr;
+
+	delete positionProcessor;
+	positionProcessor = nullptr;
+
+	ingameFlag = false;
 }
 
 bool Entity::updateMovement() {

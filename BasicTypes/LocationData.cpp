@@ -3,10 +3,12 @@
 
 
 LocationData::LocationData() {
-	positionCollection = std::shared_ptr<PositionCollection>(new PositionCollection(Position(520000.0f, 520000.0f)));
+	positionCollection = new PositionCollection(Position(520000.0f, 520000.0f));
 }
 
 LocationData::~LocationData() {
+	delete positionCollection;
+	positionCollection = nullptr;
 }
 
 Map* LocationData::getMap() const {
@@ -23,4 +25,9 @@ MapSector* LocationData::getCurrentMapSector() const {
 
 void LocationData::setCurrentMapSector(MapSector* sector) {
 	currentSector = sector;
+}
+
+std::ostream& operator<<(std::ostream& out, const LocationData* locationData) {
+	out << "[MapId: " << locationData->getMap()->getId() << ", Position: " << locationData->getPositionCollection()->getCurrentPosition() << "]";
+	return out;
 }

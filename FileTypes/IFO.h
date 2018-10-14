@@ -14,7 +14,7 @@
 class IFOEntry {
 private:
 	std::shared_ptr<char> stringData;
-	uint16_t warpId;
+	uint16_t warpSTBId;
 	uint16_t eventId;
 	uint32_t objectType;
 	uint32_t objectId;
@@ -31,10 +31,13 @@ protected:
 public:
 	IFOEntry(FileReader& reader);
 	virtual ~IFOEntry();
-
+	__inline uint16_t getWarpSTBId() const {
+		return warpSTBId;
+	}
 	__inline uint32_t getObjectId() const {
 		return objectId;
 	}
+
 	__inline float getDirection() const {
 		return direction;
 	}

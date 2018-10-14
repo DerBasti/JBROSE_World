@@ -15,6 +15,12 @@ Position::~Position() {
 }
 
 
+std::ostream& operator<<(std::ostream& out, const Position& pos) {
+	std::cout << "[X: " << pos.getX() << ", Y: " << pos.getY() << "]";
+	return out;
+}
+
+
 PositionCollection::PositionCollection() : PositionCollection(Position()) {
 
 }
@@ -40,12 +46,12 @@ PositionCollection::~PositionCollection() {
 }
 
 
-PositionProcessor::PositionProcessor(std::shared_ptr<PositionCollection> pos) : position(pos) {
+PositionProcessor::PositionProcessor(PositionCollection* pos) : position(pos) {
 
 }
 
 PositionProcessor::~PositionProcessor() {
-
+	position = nullptr;
 }
 
 bool PositionProcessor::processNewPosition() {

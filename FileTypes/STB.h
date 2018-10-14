@@ -6,15 +6,19 @@
 #include <memory>
 #include <string>
 #include "..\..\JBROSE_Common\FileReader.h"
+#include "STL.h"
 
 class STBEntry {
 private:
+	uint32_t rowId;
 	uint16_t columnAmount;
 	std::unordered_map <uint16_t, std::shared_ptr<char>> values;
 	std::unordered_map <uint16_t, uint32_t> valuesAsInt;
 public:
-	STBEntry(FileReader& reader, uint16_t columnAmount);
+	STBEntry(FileReader& reader, uint32_t rowId, uint16_t columnAmount);
 	virtual ~STBEntry();
+
+	void updateTranslations(STLFile* translations);
 
 	__inline std::shared_ptr<char> getColumnData(const uint16_t column) const {
 		return values.at(column);
@@ -29,6 +33,7 @@ public:
 
 class STBFile {
 private:
+	STLFile* translations;
 	std::string filePath;
 	uint16_t columns;
 	uint32_t rows;
@@ -36,6 +41,7 @@ private:
 
 	void readContent();
 public:
+	const static bool USE_TRANSLATIONS = true;
 	STBFile(const char *filePath);
 	virtual ~STBFile();
 

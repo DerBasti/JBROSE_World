@@ -174,10 +174,10 @@ class Player : public Entity{
 private:
 	uint32_t accountId;
 	std::shared_ptr<ROSEClient> networkConnection;
-	std::shared_ptr<Inventory> inventory;
-	std::shared_ptr<PlayerStats> stats;
-	std::shared_ptr<PlayerTraits> traits;
-	std::shared_ptr<PacketFactory> packetFactory;
+	Inventory* inventory;
+	PlayerStats* stats;
+	PlayerTraits* traits;
+	PacketFactory* packetFactory;
 
 	bool sendEncryption();
 	bool loadEntirePlayer();
@@ -212,15 +212,17 @@ public:
 	bool sendDataToVisible(const ResponsePacket& packet) const;
 	bool sendDataToVisibleExceptSelf(const ResponsePacket& packet) const;
 
-	__inline std::shared_ptr<Inventory> getInventory() const {
+	__inline Inventory* getInventory() const {
 		return inventory;
 	}
-	__inline std::shared_ptr<PlayerTraits> getTraits() const {
+	__inline PlayerTraits* getTraits() const {
 		return traits;
 	}
-	__inline std::shared_ptr<PlayerStats> getStats() const {
+	__inline PlayerStats* getStats() const {
 		return stats;
 	}
+
+	void onDisconnect();
 
 	__inline virtual bool isPlayer() const {
 		return true;

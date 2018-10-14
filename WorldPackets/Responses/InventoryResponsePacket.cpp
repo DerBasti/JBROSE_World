@@ -1,7 +1,7 @@
 #include "InventoryResponsePacket.h"
 #include "..\..\WorldClient.h"
 
-InventoryResponsePacket::InventoryResponsePacket(std::shared_ptr<Inventory> inventory) : ResponsePacket(ID) {
+InventoryResponsePacket::InventoryResponsePacket(Inventory* inventory) : ResponsePacket(ID) {
 	moneyAmount = 100;
 
 	for (uint8_t i = 0; i < 140; i++) {

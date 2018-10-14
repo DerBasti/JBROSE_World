@@ -7,6 +7,7 @@
 #include <mutex>
 #include <deque>
 #include <unordered_map>
+#include "MapRemovalRequest.h"
 
 class Map {
 private:
@@ -27,32 +28,16 @@ private:
 	std::unordered_map<uint16_t, class Entity*> allEntities;
 	std::unordered_map<uint16_t, class Player*> allPlayer;
 
-	Entity* localIds[0x10000] = { nullptr };
-
-	class RemovalRequest {
-		private:
-			uint16_t localId;
-			MapSector* registeredSector;
-		public:
-			RemovalRequest();
-			RemovalRequest(const uint16_t localId, MapSector* sector);
-			virtual ~RemovalRequest();
-
-			__inline uint16_t getLocalId() const {
-				return localId;
-			}
-			__inline MapSector* getMapSector() const {
-				return registeredSector;
-			}
-	};
+	bool localIds[0x10000] = { false };
 
 	std::deque<class Entity*> entityInsertionQueue;
-	std::unordered_map<uint16_t, std::shared_ptr<RemovalRequest>> entityRemovalQueue;
+	std::unordered_map<uint16_t, std::shared_ptr<class RemovalRequest>> entityRemovalQueue;
 
 	void addQueuedEntities();
-	void removeQueuedEntity(std::unordered_map<uint16_t, class Entity*>::const_iterator& allEntityIteratorPosition);
+	bool removeQueuedEntity(std::unordered_map<uint16_t, class Entity*>::const_iterator& allEntityIteratorPosition);
 	bool assignNewLocalId(Entity* entity);
 	void clearLocalId(Entity* entity);
+	bool removePlayerFromRequest(std::shared_ptr<class RemovalRequest>& request);
 
 	MapSector* findBestSector(const Position& position) const;
 public:
@@ -61,7 +46,7 @@ public:
 
 	bool addEntityToInsertionQueue(Entity* entity);
 	void updateEntities();
-	void addEntityToRemovalQueue(Entity* entity);
+	void addEntityToRemovalQueue(Entity* entity, RemovalReason reason);
 	bool isSectorOutdatedForEntity(Entity* entity) const;
 	MapSector* findBestSector(Entity* entity) const;
 	std::unordered_map<uint32_t, class MapSector*> findSurroundingSectors(class MapSector* sector);

@@ -17,7 +17,7 @@ protected:
 public:
 	const static uint16_t ID = 0x716;
 
-	InventoryResponsePacket(std::shared_ptr<class Inventory> inventory);
+	InventoryResponsePacket(class Inventory* inventory);
 	virtual ~InventoryResponsePacket();
 };
 

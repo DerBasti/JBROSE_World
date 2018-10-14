@@ -5,12 +5,13 @@
 #include "Position.h"
 #include <inttypes.h>
 #include <memory>
+#include <iostream>
 
 class LocationData {
 private:
 	class Map* map;
 	class MapSector* currentSector;
-	std::shared_ptr<PositionCollection> positionCollection;
+	PositionCollection* positionCollection;
 	uint16_t localId;
 public:
 	LocationData();
@@ -22,10 +23,11 @@ public:
 	MapSector* getCurrentMapSector() const;
 	void setCurrentMapSector(MapSector* sector);
 
-	__inline std::shared_ptr<PositionCollection> getPositionCollection() const {
+
+	__inline PositionCollection* getPositionCollection() const {
 		return positionCollection;
 	}
-	__inline void setPositionCollection(const std::shared_ptr<PositionCollection>& positionCollection) {
+	__inline void setPositionCollection(PositionCollection* positionCollection) {
 		this->positionCollection = positionCollection;
 	}
 
@@ -36,5 +38,8 @@ public:
 		this->localId = localId;
 	}
 };
+
+std::ostream& operator<<(std::ostream& out, const LocationData* locationData);
+std::ostream& operator<<(std::ostream& out, const std::shared_ptr<LocationData>& locationData);
 
 #endif //__ROSE_LOCATION_DATA__

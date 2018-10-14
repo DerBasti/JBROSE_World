@@ -39,7 +39,7 @@ CharacterDataResponsePacket::~CharacterDataResponsePacket() {
 
 }
 
-void CharacterDataResponsePacket::setBasicInformation(const std::shared_ptr<PlayerTraits>& traits) {
+void CharacterDataResponsePacket::setBasicInformation(PlayerTraits* traits) {
 	this->characterId = traits->getCharacterId();
 	this->characterName = traits->getName();
 	this->hairStyle = traits->getHairStyle();
@@ -52,7 +52,7 @@ void CharacterDataResponsePacket::setBasicInformation(const std::shared_ptr<Play
 	this->birthstone = 0;
 }
 
-void CharacterDataResponsePacket::setStats(const std::shared_ptr<PlayerStats>& stats) {
+void CharacterDataResponsePacket::setStats(PlayerStats* stats) {
 	this->currentHp = stats->getCurrentHp();
 	this->currentMp = stats->getCurrentMp();
 	this->experiencePoints = stats->getExperiencePoints();

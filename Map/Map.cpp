@@ -2,6 +2,7 @@
 #include "..\WorldClient.h"
 #include "Map.h"
 #include "MapSector.h"
+#include "MapRemovalRequest.h"
 #include <iostream>
 #include <thread>
 
@@ -32,26 +33,24 @@ std::unordered_map<uint32_t, MapSector*> Map::findSurroundingSectors(MapSector* 
 
 bool Map::assignNewLocalId(Entity* entity) {
 	uint16_t id = 0;
-	Entity* foundEntity = nullptr;
+	bool isInUse = false;
 	bool emptyIdFound = false;
 	uint16_t attempts = 10000;
 	do {
 		id = rand() % 0x10000;
-		foundEntity = localIds[id];
-	} while (!(emptyIdFound = (id > 0 && foundEntity == nullptr)) && (attempts--) > 0);
+		isInUse = localIds[id];
+	} while (!(emptyIdFound = (id > 0 && !isInUse)) && (attempts--) > 0);
 
 	if (emptyIdFound) {
-		localIds[id] = entity;
+		localIds[id] = true;
 		entity->getLocationData()->setLocalId(id);
-		entity->setIsIngame(true);
 	}
 	return emptyIdFound;
 }
 
 void Map::clearLocalId(Entity* entity) {
-	localIds[entity->getLocationData()->getLocalId()] = nullptr;
+	localIds[entity->getLocationData()->getLocalId()] = false;
 	entity->getLocationData()->setLocalId(0);
-	entity->setIsIngame(false);
 }
 
 void Map::addQueuedEntities() {
@@ -65,16 +64,36 @@ void Map::addQueuedEntities() {
 			allPlayer.insert(std::make_pair(entity->getLocationData()->getLocalId(), dynamic_cast<Player*>(entity)));
 		}
 		entity->getLocationData()->setMap(this);
+		entity->setIngame(true);
 	});
 	entityInsertionQueue.clear();
 }
 
-void Map::removeQueuedEntity(std::unordered_map<uint16_t, class Entity*>::const_iterator& allEntityIteratorPosition) {
-	auto request = entityRemovalQueue.at(allEntityIteratorPosition->first);
-	request->getMapSector()->removeDisconnectingPlayer(request->getLocalId());
+bool Map::removeQueuedEntity(std::unordered_map<uint16_t, Entity*>::const_iterator& allEntityIteratorPosition) {
+	std::lock_guard<std::mutex> lock(entityRemovalMutex);
+	bool removedFlag = entityRemovalQueue.find(allEntityIteratorPosition->first) != entityRemovalQueue.cend();
+	if (removedFlag) {
+		auto request = entityRemovalQueue.at(allEntityIteratorPosition->first);
+		std::cout << "Removing entity with ID " << request->getLocalId() << " from map-queue " << getId() << "\n";
+		auto entity = allEntityIteratorPosition->second;
+		if (entity->isPlayer()) {
+			removePlayerFromRequest(request);
+		}
 
-	allEntityIteratorPosition = allEntities.erase(allEntityIteratorPosition);
+		allEntityIteratorPosition = allEntities.erase(allEntityIteratorPosition);
+		clearLocalId(entity);
+		entityRemovalQueue.erase(request->getLocalId());
+	}
+	return removedFlag;
+}
+
+bool Map::removePlayerFromRequest(std::shared_ptr<RemovalRequest>& request) {
+	auto surroundingSectors = findSurroundingSectors(request->getMapSector());
+	std::for_each(surroundingSectors.begin(), surroundingSectors.end(), [request](const std::pair<uint32_t, MapSector*>& pair) {
+		pair.second->removeDisconnectingPlayer(request->getLocalId());
+	});
 	allPlayer.erase(request->getLocalId());
+	return true;
 }
 
 bool Map::addEntityToInsertionQueue(Entity* entity) {
@@ -88,14 +107,15 @@ bool Map::addEntityToInsertionQueue(Entity* entity) {
 	return success;
 }
 
-void Map::addEntityToRemovalQueue(Entity* entity) {
+void Map::addEntityToRemovalQueue(Entity* entity, RemovalReason reason) {
 	if (entity == nullptr || entity->getLocationData()->getCurrentMapSector() == nullptr || entity->getLocationData()->getLocalId() == 0x00) {
 		return;
 	}
+	entity->setIngame(false);
+	std::shared_ptr<RemovalRequest> removalRequest = RemovalRequestFactory::createRemovalRequest(entity, reason);
 	std::lock_guard<std::mutex> lock(entityRemovalMutex);
-	std::shared_ptr<RemovalRequest> removalRequest(new RemovalRequest(entity->getLocationData()->getLocalId(), entity->getLocationData()->getCurrentMapSector()));
-	clearLocalId(entity);
 	entityRemovalQueue.insert(std::make_pair(removalRequest->getLocalId(), removalRequest));
+	std::cout << "Added entity to removal queue.\n";
 }
 
 void Map::updateEntities() {
@@ -104,14 +124,10 @@ void Map::updateEntities() {
 		return;
 	}
 	for(auto it=allEntities.cbegin();it!=allEntities.cend();) {
-		const std::pair<uint16_t, Entity*>& pair = (*it);
-		entityRemovalMutex.lock();
-		if (entityRemovalQueue.find(pair.first) != entityRemovalQueue.cend()) {
-			removeQueuedEntity(it);
-			entityRemovalMutex.unlock();
+		if(removeQueuedEntity(it)) {
 			continue;
 		}
-		entityRemovalMutex.unlock();
+		const std::pair<uint16_t, Entity*>& pair = (*it);
 		auto entity = pair.second;
 		entity->updateMovement();
 		if (entity->getVisualityProcessor()->isVisualityUpdateRequired()) {
@@ -151,16 +167,4 @@ MapSector* Map::findBestSector(const Position& position) const {
 
 	uint16_t id = sectorX + (sectorY * SECTORS_PER_AXIS);
 	return mapSectors.at(id);
-}
-
-
-Map::RemovalRequest::RemovalRequest() : RemovalRequest(0, nullptr) {}
-
-Map::RemovalRequest::RemovalRequest(const uint16_t localId, MapSector* sector) {
-	this->localId = localId;
-	registeredSector = sector;
-}
-Map::RemovalRequest::~RemovalRequest() {
-	registeredSector = nullptr;
-	localId = 0;
 }

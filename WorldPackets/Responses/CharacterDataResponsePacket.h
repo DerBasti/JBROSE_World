@@ -57,8 +57,8 @@ private:
 protected:
 	void appendContentToSendable(SendablePacket& packet) const;
 
-	void setBasicInformation(const std::shared_ptr<class PlayerTraits>& traits);
-	void setStats(const std::shared_ptr<class PlayerStats>& stats);
+	void setBasicInformation(class PlayerTraits* traits);
+	void setStats(class PlayerStats* stats);
 	void setUnionData();
 	void setSkillData();
 public:

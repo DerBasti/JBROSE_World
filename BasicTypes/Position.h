@@ -80,6 +80,8 @@ public:
 	}
 };
 
+std::ostream& operator<<(std::ostream& out, const Position& pos);
+
 class Timer {
 private:
 	std::chrono::system_clock clock;
@@ -107,7 +109,7 @@ public:
 
 class PositionProcessor {
 private:
-	std::shared_ptr<PositionCollection> position;
+	PositionCollection* position;
 	Timer timer;
 	uint64_t lastTimestampSinceMove;
 
@@ -118,7 +120,7 @@ private:
 		return position->getDestinationPosition().getY() - position->getCurrentPosition().getY();
 	}
 public:
-	PositionProcessor(std::shared_ptr<PositionCollection> pos);
+	PositionProcessor(PositionCollection* pos);
 	virtual ~PositionProcessor();
 
 	bool processNewPosition();

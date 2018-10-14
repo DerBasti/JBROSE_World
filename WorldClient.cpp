@@ -4,22 +4,31 @@
 #include "WorldServer.h"
 #include "Map/MapSector.h"
 #include "..\JBROSE_Common\EncryptionHandler.h"
+#include "Map/MapRemovalRequest.h"
 #include <iostream>
 
 
 Player::Player(std::shared_ptr<ROSEClient>& networkInterface) {
 	networkConnection = networkInterface;
-	stats = std::shared_ptr<PlayerStats>(new PlayerStats());
-	traits = std::shared_ptr<PlayerTraits>(new PlayerTraits());
-	inventory = std::shared_ptr<Inventory>(new Inventory());
-	visualityProcessor = std::shared_ptr<PlayerVisualityProcessor>(new PlayerVisualityProcessor(this));
+	stats = new PlayerStats();
+	traits = new PlayerTraits();
+	inventory = new Inventory();
+	visualityProcessor = new PlayerVisualityProcessor(this);
 }
 
 Player::~Player() {
 	networkConnection = nullptr;
+	delete stats;
+	delete traits;
+	delete inventory;
+	delete visualityProcessor;
+	std::cout << "~Player()\n";
+}
+
+void Player::onDisconnect() {
 	auto map = getLocationData()->getMap();
 	if (map) {
-		map->addEntityToRemovalQueue(this);
+		map->addEntityToRemovalQueue(this, RemovalReason::PLAYER_DISCONNECT);
 	}
 }
 

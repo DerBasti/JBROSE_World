@@ -8,11 +8,11 @@
 
 class Entity {
 private:
-	std::shared_ptr<LocationData> locationData;
-	std::shared_ptr<PositionProcessor> positionProcessor;
+	LocationData* locationData;
+	PositionProcessor* positionProcessor;
 	bool ingameFlag;
 protected:
-	std::shared_ptr<class VisualityProcessor> visualityProcessor;
+	class VisualityProcessor* visualityProcessor;
 public:
 	Entity();
 	virtual ~Entity();
@@ -24,10 +24,10 @@ public:
 	virtual bool despawnVisually(Entity* entity);
 	virtual bool despawnVisually(uint16_t entityId);
 
-	__inline std::shared_ptr<LocationData> getLocationData() const {
+	__inline LocationData* getLocationData() const {
 		return locationData;
 	}
-	__inline std::shared_ptr<class VisualityProcessor> getVisualityProcessor() const {
+	__inline class VisualityProcessor* getVisualityProcessor() const {
 		return visualityProcessor;
 	}
 
@@ -44,10 +44,10 @@ public:
 		return false;
 	}
 	__inline bool isIngame() const {
-		return ingameFlag;
+		return getLocationData()->getLocalId() > 0;
 	}
-	__inline void setIsIngame(bool ingame) {
-		ingameFlag = ingame;
+	__inline void setIngame(bool flag) {
+		ingameFlag = flag;
 	}
 };
 

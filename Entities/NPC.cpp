@@ -13,19 +13,16 @@ NPCDefaultStatValues::~NPCDefaultStatValues() {
 
 }
 
-NPC::NPC(std::shared_ptr<NPCDefaultStatValues>& defaultValues, const Position& spawnPosition) {
+NPC::NPC(NPCDefaultStatValues* defaultValues, const Position& spawnPosition) {
 	getLocationData()->getPositionCollection()->setCurrentPosition(spawnPosition);
 	getLocationData()->getPositionCollection()->setDestinationPosition(spawnPosition);
 
 	defaultStatValues = defaultValues;
 
-	visualityProcessor = std::shared_ptr<VisualityProcessor>(new NPCVisualityProcessor(this));
+	visualityProcessor = new NPCVisualityProcessor(this);
 }
 
 NPC::~NPC() {
-
-}
-
-std::shared_ptr<class SpawnEntityVisuallyResponsePacket> NPC::createSpawnVisuallyPacket() {
-	return std::shared_ptr<class SpawnEntityVisuallyResponsePacket>();
+	delete visualityProcessor;
+	visualityProcessor = nullptr;
 }

@@ -59,7 +59,7 @@ IFOEntry::~IFOEntry() {
 void IFOEntry::readBasicStructure(FileReader& reader) {
 	uint8_t strLen = reader.readByte();
 	stringData = reader.readString(strLen);
-	warpId = reader.readUShort();
+	warpSTBId = reader.readUShort();
 	eventId = reader.readUShort();
 	objectType = reader.readUInt();
 	objectId = reader.readUInt();

@@ -36,14 +36,12 @@ public:
 
 class NPC : public Entity {
 private:
-	std::shared_ptr<NPCDefaultStatValues> defaultStatValues;
-protected:
-	virtual std::shared_ptr<class SpawnEntityVisuallyResponsePacket> createSpawnVisuallyPacket();
+	NPCDefaultStatValues* defaultStatValues;
 public:
-	NPC(std::shared_ptr<NPCDefaultStatValues>& defaultValues, const Position& spawnPosition);
+	NPC(NPCDefaultStatValues* defaultValues, const Position& spawnPosition);
 	virtual ~NPC();
 
-	__inline std::shared_ptr<NPCDefaultStatValues> getDefaultStatValues() const {
+	__inline NPCDefaultStatValues* getDefaultStatValues() const {
 		return defaultStatValues;
 	}
 

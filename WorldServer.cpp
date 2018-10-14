@@ -4,6 +4,8 @@
 #include "Entities/Monster.h"
 #include "..\JBROSE_Common\DirectoryParser.h"
 #include "FileTypes/IFO.h"
+#include "FileTypes/ZON.h"
+#include "Map/MapRemovalRequest.h"
 #include "WorldPackets/Responses/TelegateResponsePacket.h"
 
 WorldServer::WorldServer(uint16_t port) : ROSEServer(port) {
@@ -13,7 +15,10 @@ WorldServer::WorldServer(uint16_t port) : ROSEServer(port) {
 }
 
 WorldServer::~WorldServer() {
-
+	std::for_each(telegates.begin(), telegates.end(), [](std::pair<uint16_t, Telegate*> gatePair) {
+		delete gatePair.second;
+		gatePair.second = nullptr;
+	});
 }
 
 void WorldServer::loadEncryption() {
@@ -22,9 +27,9 @@ void WorldServer::loadEncryption() {
 }
 
 
-std::shared_ptr<Player> WorldServer::findWorldClientByInterface(std::shared_ptr<ROSEClient>& client) const {
+Player* WorldServer::findWorldClientByInterface(std::shared_ptr<ROSEClient>& client) const {
 	auto it = worldClientList.find(client);
-	std::shared_ptr<Player> player;
+	Player* player = nullptr;
 	if (it != worldClientList.end()) {
 		player = (*it).second;
 	}
@@ -32,7 +37,7 @@ std::shared_ptr<Player> WorldServer::findWorldClientByInterface(std::shared_ptr<
 }
 
 bool WorldServer::onPacketsReady(std::shared_ptr<ROSEClient>& roseClient, std::queue<std::shared_ptr<Packet>>& packetQueue) {
-	std::shared_ptr<Player> client = findWorldClientByInterface(roseClient);
+	Player* client = findWorldClientByInterface(roseClient);
 	bool success = client != nullptr;
 	if (success) {
 		while (!packetQueue.empty()) {
@@ -45,43 +50,69 @@ bool WorldServer::onPacketsReady(std::shared_ptr<ROSEClient>& roseClient, std::q
 }
 
 void WorldServer::onServerStartup() {
+	Timer timer;
 	std::cout << "Starting up server...\n";
 	loadFileEntries();
 	loadNpcDefaultValues();
 	createMaps();
 	std::cout << "Startup finished!\n";
+	std::cout << "Startup took: " << timer.getPassedTimeInMillis() << "ms\n";
 }
 
 void WorldServer::loadFileEntries() {
-	npcFile = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_NPC.STB"));
-	zoneFile = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_ZONE.STB"));
+	std::cout << "Loading STBs...\n";
+	npcSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_NPC.STB"));
+	warpSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\WARP.STB"));
+	zoneSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_ZONE.STB"));
+	std::cout << "Finished loading STBs including translations!\n";
+	std::cout << "Loading Zone-Files...\n";
+	loadZONFiles();
+	std::cout << "Finished loading Zone-Files...\n";
+}
+
+void WorldServer::loadZONFiles() {
+	std::string basicPath = "D:\\Games\\ROSE Server\\VFS_Extrator\\";
+	for (uint32_t i = 1; i < zoneSTB->getEntryAmount(); i++) {
+		auto row = zoneSTB->getEntry(i);
+		auto path = row->getColumnData(1);
+		std::string realPath = basicPath + std::string(path.get());
+		if (realPath.length() == basicPath.length() || !DirectoryParser::isFileExistent(realPath.c_str())) {
+			zoneFiles.insert(std::make_pair(i, nullptr));
+			continue;
+		}
+		zoneFiles.insert(std::make_pair(i, new ZONFile(realPath.c_str())));
+	}
 }
 
 void WorldServer::loadNpcDefaultValues() {
-	auto allEntries = npcFile->getAllEntries();
+	auto allEntries = npcSTB->getAllEntries();
 	for (auto it = allEntries.cbegin(); it != allEntries.cend(); it++) {
 		auto entry = it->second;
-		npcDefaultStatValues.insert(std::make_pair(it->first, std::shared_ptr<NPCDefaultStatValues>(new NPCDefaultStatValues(it->first, entry))));
+		npcDefaultStatValues.insert(std::make_pair(it->first, new NPCDefaultStatValues(it->first, entry)));
 	}
 }
 
 void WorldServer::createMaps() {
 	const std::string basicPath = "D:\\Games\\ROSE Server\\VFS_Extrator\\";
-	for (uint16_t i = 1; i < zoneFile->getEntryAmount(); i++) {
-		maps[i] = new Map(i);
-		std::string path = std::string(zoneFile->getEntry(i)->getColumnData(0x01).get());
+	std::cout << "Amount of zones: " << zoneSTB->getEntryAmount() << "\n";
+	for (uint16_t i = 1; i < zoneSTB->getEntryAmount(); i++) {
+		std::string path = std::string(zoneSTB->getEntry(i)->getColumnData(0x01).get());
 		path = path.substr(0, path.find_last_of('\\'));
 		DirectoryParser parser((basicPath + path).c_str());
+		Map* currentMap = nullptr;
 		if (!path.empty() && parser.isDirectoryExistent()) {
-			std::cout << "Starting up Map[" << i << "].\n";
-			loadIFOData(maps[i], parser);
+			currentMap = new Map(i);
+			std::cout << "Starting up Map[" << zoneSTB->getEntry(i)->getColumnData(0) << "].\n";
+			loadIFOData(currentMap, parser);
 			mapThreads[i] = std::thread([this](Map* map) {
 				while (true) {
 					map->updateEntities();
 					Sleep(20);
 				}
-			}, maps[i]);
+			}, currentMap);
+			std::cout << "Finished start-up of Map[" << zoneSTB->getEntry(i)->getColumnData(0) << "].\n";
 		}
+		maps[i] = currentMap;
 	}
 }
 
@@ -92,6 +123,7 @@ void WorldServer::loadIFOData(Map* map, DirectoryParser& parser) {
 		IFOFile ifo(file);
 		loadNPCs(map, ifo);
 		loadMonsters(map, ifo);
+		loadTelegates(map, ifo);
 	}
 }
 
@@ -103,7 +135,7 @@ void WorldServer::loadNPCs(Map* map, const IFOFile& file) {
 	for (auto& npcEntry : npcs) {
 		const Position& pos = npcEntry->getPosition();
 		auto npcDefaultValues = getNPCDefaultValue(npcEntry->getObjectId());
-		NPC* npc = new NPC(npcDefaultValues, pos);
+		Entity* npc = new NPC(npcDefaultValues, pos);
 		npc->getLocationData()->getPositionCollection()->setDirection(npcEntry->getDirection());
 		map->addEntityToInsertionQueue(npc);
 	}
@@ -136,8 +168,38 @@ void WorldServer::loadMonsters(Map* map, const IFOFile& file) {
 	}
 }
 
+void WorldServer::loadTelegates(Map* map, const IFOFile& file) {
+	Timer timer;
+	ZONFile* zoneFile = zoneFiles.at(map->getId());
+	if (!zoneFile) {
+		return;
+	}
+	if (file.isTypedEntryExistent(IFOFile::BlockType::TELEGATE)) {
+		auto telegatesFromIfo = file.getTypedEntry(IFOFile::BlockType::TELEGATE);
+		extractTelegateFromIfo(telegatesFromIfo, zoneFile);
+	}
+}
+
+void WorldServer::extractTelegateFromIfo(std::vector<std::shared_ptr<IFOEntry>> &telegatesFromIfo, ZONFile* zonFile)
+{
+	for (auto& ifoTelegate : telegatesFromIfo) {
+		const STBEntry* warpDestinationEntry = warpSTB->getEntry(ifoTelegate->getWarpSTBId());
+		uint32_t mapId = warpDestinationEntry->getColumnDataAsInt(1);
+		auto gateName = warpDestinationEntry->getColumnData(2);
+		auto zonFile = zoneFiles.at(mapId);
+		Telegate* telegate = nullptr;
+		EventZoneData *telegateZoneData = zonFile->getEventByName(gateName.get());
+		if (!telegateZoneData) {
+			std::cout << "Gate [" << gateName << "] NOT found! Setting to default gate for map " << zoneSTB->getEntry(mapId)->getColumnData(0) << "\n";
+			telegateZoneData = zonFile->getEventByName(EventZoneData::DEFAULT_EVENT);
+		}
+		telegate = new Telegate(telegateZoneData, mapId);
+		this->telegates.insert(std::make_pair(ifoTelegate->getWarpSTBId(), telegate));
+	}
+}
+
 void WorldServer::onNewROSEClient(std::shared_ptr<ROSEClient>& roseClient) {
-	std::shared_ptr<Player> newPlayer = std::shared_ptr<Player>(new Player(roseClient));
+	Player *newPlayer = new Player(roseClient);
 	worldClientList.insert(std::make_pair(roseClient, newPlayer));
 }
 
@@ -147,6 +209,7 @@ void WorldServer::onROSEClientDisconnecting(std::shared_ptr<ROSEClient>& roseCli
 		std::cout << "Player konnte nicht gefunden werden!";
 		return;
 	}
+	client->onDisconnect();
 	worldClientList.erase(roseClient);
 }
 
@@ -193,15 +256,20 @@ bool WorldServer::loadInventoryForCharacter(Player* player) {
 			inventory->setItem(currentRow->getColumnDataAsInt(5), item);
 		}
 	}
-	return true;
+	return result.operator bool();
 }
 
 bool WorldServer::teleportPlayerFromTelegate(Player* player, const uint16_t telegateId) {
-	//FIND TELEGATE. IF FOUND:
-
 	Position pos(520000.0f, 520000.0f);
-	uint16_t mapId = 21;
-
+	uint16_t mapId = 22;
+	if (telegates.find(telegateId) != telegates.cend()) {
+		auto telegate = telegates.at(telegateId);
+		pos = telegate->getPosition();
+		mapId = telegate->getMapId();
+	}
+	else {
+		std::cout << "Couldn't find telegate with id: " << telegateId << ". Player position: [" << player->getLocationData() << "]\n";
+	}
 	return teleportPlayer(player, maps[mapId], pos);
 }
 
@@ -213,11 +281,13 @@ bool WorldServer::teleportPlayer(Player* player, Map* map, const Position& pos) 
 	response.setMapId(map->getId());
 	response.setPosition(pos);
 
-	locationData->getMap()->addEntityToRemovalQueue(player);
+	locationData->getMap()->addEntityToRemovalQueue(player, RemovalReason::TELEPORT);
 	locationData->setMap(map);
 	locationData->setCurrentMapSector(nullptr);
 	locationData->getPositionCollection()->setCurrentPosition(pos);
 	locationData->getPositionCollection()->setDestinationPosition(pos);
+
+	std::cout << "Spawning player to: " << locationData << "\n";
 
 	return player->sendDataToSelf(response);
 }
