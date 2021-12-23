@@ -12,6 +12,7 @@ public:
 	const static uint16_t ID = 0x7A8;
 	TelegateRequestPacket(const Packet* packet);
 	virtual ~TelegateRequestPacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint16_t getTelegateId() const {
 		return telegateId;

@@ -3,16 +3,19 @@
 #pragma once
 #include <mutex>
 #include <memory>
-#include <chrono>
 #include <inttypes.h>
 #include <thread>
+#include "..\..\JBROSE_Common\Timer.h"
+#include "../../JBROSE_Common/Logger.h"
 
 class Position {
 private:
 	float x;
 	float y;
+
 public:
 	Position();
+	Position(const Position& pos);
 	Position(float _x, float _y);
 	virtual ~Position();
 
@@ -44,90 +47,74 @@ public:
 	}
 };
 
-class PositionCollection {
+std::ostream& operator<<(std::ostream& out, const Position& pos);
+std::wostream& operator<<(std::wostream& out, const Position& pos);
+
+class MapPosition {
+public:
+	using UpdateDestinationVisuallyCallback = bool(*)();
 private:
 	Position current;
 	std::mutex currentPositionMutex;
 	Position destination;
 	std::mutex destinationPositionMutex;
+	Position source;
+	std::mutex sourcePositionMutex;
 	float direction;
+
+	std::function<bool()> updateCallback;
 public:
-	PositionCollection();
-	PositionCollection(const Position& current);
-	PositionCollection(const Position& current, const Position& destination);
-	PositionCollection(const PositionCollection& collection);
-	virtual ~PositionCollection();
+	MapPosition();
+	MapPosition(const Position& current);
+	MapPosition(const Position& current, const Position& destination);
+	MapPosition(const MapPosition& collection);
+	virtual ~MapPosition();
 
 	__inline Position getCurrentPosition() const {
-		return current;
+		return Position(current);
 	}
-	__inline void setCurrentPosition(const Position& current) {
+	
+	__inline void setCurrentPosition(Position current) {
 		std::lock_guard<std::mutex> lock(currentPositionMutex);
-		this->current = current;
+		this->current = std::move(current);
 	}
+
 	__inline Position getDestinationPosition() const {
-		return destination;
+		return Position(destination);
 	}
-	__inline void setDestinationPosition(const Position& destination) {
+
+	__inline void setDestinationPosition(Position destination) {
 		std::lock_guard<std::mutex> lock(destinationPositionMutex);
-		this->destination = destination;
+		this->destination = std::move(destination);
 	}
+	__inline void setDestinationPositionToCurrentPosition() {
+		setDestinationPosition(getCurrentPosition());
+	}
+
+	__inline bool setDestinationPositionVisually(Position destination) {
+		setDestinationPosition(std::move(destination));
+		return updateCallback();
+	}
+
+	__inline Position getSourcePosition() const {
+		return Position(source);
+	}
+
+	__inline void setSourcePosition(Position source) {
+		std::lock_guard<std::mutex> lock(destinationPositionMutex);
+		this->source = std::move(source);
+	}
+
 	__inline void setDirection(const float dir) {
 		direction = dir;
 	}
 	__inline float getDirection() const {
 		return direction;
 	}
-};
 
-std::ostream& operator<<(std::ostream& out, const Position& pos);
-
-class Timer {
-private:
-	std::chrono::system_clock clock;
-	uint64_t timestamp;
-
-	__inline uint64_t getCurrentTimeInMillis() const {
-		std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(clock.now().time_since_epoch());
-		return ms.count();
+	__inline void setUpdateDestinationVisualCallback(std::function<bool()> callback) {
+		updateCallback = callback;
 	}
-public:
-	Timer() { 
-		timestamp = getCurrentTimeInMillis();
-	}
-	virtual ~Timer() { }
-
-	__inline uint64_t getPassedTimeInMillis() const {
-		return getCurrentTimeInMillis() - timestamp;
-	}
-	__inline uint64_t updateTimestamp() {
-		uint64_t result = getPassedTimeInMillis();
-		timestamp = getCurrentTimeInMillis();
-		return result;
-	}
-};
-
-class PositionProcessor {
-private:
-	PositionCollection* position;
-	Timer timer;
-	uint64_t lastTimestampSinceMove;
-
-	__inline float getDistanceX() const {
-		return position->getDestinationPosition().getX() - position->getCurrentPosition().getX();
-	}
-	__inline float getDistanceY() const {
-		return position->getDestinationPosition().getY() - position->getCurrentPosition().getY();
-	}
-public:
-	PositionProcessor(PositionCollection* pos);
-	virtual ~PositionProcessor();
-
-	bool processNewPosition();
-	__inline float getDistanceToDestination() const {
-		return getDistanceBetweenPoints(position->getCurrentPosition(), position->getDestinationPosition());
-	}
-	static float getDistanceBetweenPoints(const Position& first, const Position& second);
 };
 
 #endif //__ROSE_POSITION__

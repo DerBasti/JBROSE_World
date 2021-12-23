@@ -6,8 +6,13 @@
 
 class Monster : public NPC {
 public:
-	Monster(NPCDefaultStatValues* defaultValues, const Position& spawnPosition);
+	Monster(NPCDefaultStatValues* defaultValues, AIP* ai, const Position& spawnPosition);
+	Monster(NPCDefaultStatValues* defaultValues, AIP* ai, MonsterRecoveryPoint* spawnPosition);
 	virtual ~Monster();
+
+	__inline bool isNPC() const {
+		return false;
+	}
 
 	__inline bool isMonster() const {
 		return true;

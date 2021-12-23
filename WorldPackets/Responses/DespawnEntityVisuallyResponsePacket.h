@@ -14,6 +14,7 @@ public:
 	DespawnEntityVisuallyResponsePacket(uint16_t localId);
 	DespawnEntityVisuallyResponsePacket(class Entity* entity);
 	virtual ~DespawnEntityVisuallyResponsePacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint16_t getLocalId() const {
 		return localId;

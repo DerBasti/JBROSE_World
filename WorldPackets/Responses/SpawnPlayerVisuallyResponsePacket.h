@@ -14,6 +14,7 @@ public:
 	const static uint16_t ID = 0x793;
 	SpawnPlayerVisuallyResponsePacket(class Player* entity);
 	virtual ~SpawnPlayerVisuallyResponsePacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint8_t getSex() const {
 		return sex;

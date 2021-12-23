@@ -1,5 +1,6 @@
 #include "AssignLocalPlayerIdResponsePacket.h"
 #include "..\..\WorldClient.h"
+#include "../../Map/Map.h"
 
 AssignLocalPlayerIdResponsePacket::AssignLocalPlayerIdResponsePacket(const Player* player) : ResponsePacket(ID, DEFAULT_LENGTH) {
 	localId = player->getLocationData()->getLocalId();
@@ -7,19 +8,21 @@ AssignLocalPlayerIdResponsePacket::AssignLocalPlayerIdResponsePacket(const Playe
 	currentMp = player->getStats()->getCurrentMp();
 	experiencePoints = player->getStats()->getExperiencePoints();
 
-	unknown1 = 0x64;
-	unknown2 = 0x0C1F4B79;
-	unknown3 = 0x64;
-	unknown4 = 0x3232cd50;
-	unknown5 = 0x32323235;
-	unknown6 = 0x35323232;
+	productRate = 0x64;
+	updateTime = 0x0C1F4B79;
+	worldRate = 0x64;
+	townRate = 0x50;
+	for (uint8_t i = 0; i < 11; i++) {
+		itemRates[i] = 0x32;
+	}
 
-	pvpMapFlag = 0;
-	mapTime = 0;
-	teamId = 0;
+	pvpMapFlag = static_cast<uint32_t>(AssignLocalPlayerIdPVPFlag::NO_PVP);
+	mapTime = static_cast<uint32_t>(player->getLocationData()->getMap()->getMapTime().getCurrentTimeInSeconds());
+	teamId = player->getCombat()->getTeamId();
 }
 
 AssignLocalPlayerIdResponsePacket::~AssignLocalPlayerIdResponsePacket() {
+
 }
 
 
@@ -28,15 +31,24 @@ void AssignLocalPlayerIdResponsePacket::appendContentToSendable(SendablePacket& 
 	packet.addData(currentHp);
 	packet.addData(currentMp);
 	packet.addData(experiencePoints);
+	packet.addData<uint32_t>(0x00); //Exp?
 
-	packet.addData(unknown1);
-	packet.addData(unknown2);
-	packet.addData(unknown3);
-	packet.addData(unknown4);
-	packet.addData(unknown5);
-	packet.addData(unknown6);
+	packet.addData(productRate);
+	packet.addData(updateTime);
+	packet.addData(worldRate);
+	packet.addData(townRate);
+	for (uint8_t i = 0; i < 11; i++) {
+		packet.addData(itemRates[i]);
+	}
 
 	packet.addData(pvpMapFlag);
 	packet.addData(mapTime);
 	packet.addData(teamId);
+}
+
+
+std::string AssignLocalPlayerIdResponsePacket::toPrintable() const {
+	char buf[0x200] = { 0x00 };
+	sprintf_s(buf, "[AssignLocalPlayerIdResponsePacket]\n\t* New local id: %i\n\t* WorldTime: %i\n\t* TeamId: %i", localId, mapTime, teamId);
+	return std::string(buf);
 }

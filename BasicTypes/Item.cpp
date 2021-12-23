@@ -4,7 +4,7 @@ Item::Item() : Item(ItemTypeList::UNKNOWN, 0, 0) {}
 
 Item::Item(const ItemType& type, const uint16_t id) : Item(type, id, 1) {}
 
-Item::Item(const ItemType& _type, const uint16_t id, const uint16_t amount) : type(_type) {
+Item::Item(const ItemType& _type, const uint16_t id, const uint32_t amount) : type(_type) {
 	this->id = id;
 	this->amount = amount;
 	lifespan = 1000;
@@ -21,6 +21,16 @@ Item::~Item() {
 
 }
 
+std::ostream& operator<<(std::ostream& out, const Item& item) {
+	//Ex: [T: 5, ID: 101 (n: 1)]
+	out << "[T: " << item.getType() << ", ID: " << item.getId() << " (n: " << item.getAmount() << ")]";
+	return out;
+}
+
+std::wostream& operator<<(std::wostream& out, const Item& item) {
+	out << "[T: " << item.getType() << ", ID: " << item.getId() << " (n: " << item.getAmount() << ")]";
+	return out;
+}
 
 
 const uint32_t ItemVisuality::toVisualityBytes(const Item& item) {

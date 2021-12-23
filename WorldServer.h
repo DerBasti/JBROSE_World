@@ -9,28 +9,40 @@
 #include "Map\Map.h"
 #include "FileTypes/IFO.h"
 #include "FileTypes/STB.h"
+#include "FileTypes/AIP.h"
+#include "FileTypes/ZMO.h"
+#include "FileTypes/CHR.h"
 #include "..\JBROSE_Common\DirectoryParser.h"
 #include "Map/Telegate.h"
 
 class WorldServer : public ROSEServer {
 private:
 	std::unordered_map<std::shared_ptr<ROSEClient>, Player*> worldClientList;
-	std::unordered_map<uint32_t, NPCDefaultStatValues*> npcDefaultStatValues;
 	std::unordered_map<uint16_t, Telegate*> telegates;
+	std::unordered_map<uint32_t, ZMO*> attackAnimations;
 	std::map<uint32_t, ZONFile*> zoneFiles;
-	std::thread mapThreads[120];
-	Map* maps[120];
-	
+	std::vector<RestorePoint*> restorePoints;
+	CHRFile *npcAnimationFile;
+	const static uint16_t MAP_AMOUNT = 120;
+	Map* maps[MAP_AMOUNT];
+	std::thread mapThreads[MAP_AMOUNT];
+
+	std::shared_ptr<STBFile> aiSTB;
 	std::shared_ptr<STBFile> npcSTB;
 	std::shared_ptr<STBFile> warpSTB;
-	std::shared_ptr<STBFile> zoneSTB;
+	std::shared_ptr<ZoneSTBFile> zoneSTB;
+	std::shared_ptr<StatusSTBFile*> statusSTB;
+	std::shared_ptr<STBFile*> equipmentSTBs;
+	std::shared_ptr<STBFile> motionTypesSTB;
 
 	Player* findWorldClientByInterface(std::shared_ptr<ROSEClient>& client) const;
 
 	void loadFileEntries();
+	void loadAi();
 	void loadNpcDefaultValues();
 	void createMaps();
 	void loadZONFiles();
+	void loadAttackAnimationTimings();
 	void loadIFOData(Map* map, DirectoryParser& parser);
 	void loadMonsters(Map* map, const class IFOFile& file);
 	void loadNPCs(Map* map, const class IFOFile& file);
@@ -38,11 +50,15 @@ private:
 
 	void extractTelegateFromIfo(std::vector<std::shared_ptr<IFOEntry>> &telegatesFromIfo, ZONFile* zonFile);
 
-	NPCDefaultStatValues* getNPCDefaultValue(const uint32_t id) const {
-		return (npcDefaultStatValues.find(id) == npcDefaultStatValues.cend() ? nullptr : npcDefaultStatValues.at(id));
-	}
-
 	bool teleportPlayer(Player* player, Map* map, const Position& pos);
+
+	bool saveCharacterDataForCharacter(Player* player);
+	bool saveSkilledAttributesForCharacter(Player* player);
+	bool saveInventoryForCharacter(Player* player);
+	bool saveItemForPlayerInventory(Player* player, const uint8_t slotId);
+
+	ZMO* getAttackAnimationByWeaponId(const uint32_t id) const;
+	ZMO* getAttackAnimationBySkillId(const uint32_t id) const;
 protected:
 	virtual void onServerStartup();
 	virtual bool onPacketsReady(std::shared_ptr<ROSEClient>& client, std::queue<std::shared_ptr<Packet>>& packetQueue);
@@ -52,17 +68,32 @@ public:
 	WorldServer(uint16_t port);
 	virtual ~WorldServer();
 
+	void loadEncryption();
+	bool loadCharacterDataForCharacter(Player* player);
 	uint32_t getLastLoggedCharacterFromAccount(const uint32_t accountId);
-	bool loadCharacterDataForCharacter(Player* player); 
+	bool loadSkilledAttributesForCharacter(Player* player);
 	bool loadInventoryForCharacter(Player* player);
 
-	void loadEncryption();
 
+	bool saveCharacter(Player* player);
 	bool teleportPlayerFromTelegate(Player* player, const uint16_t telegateId);
 
+	bool addDropFromNPC(NPC* monster, int16_t levelDifferenceToKiller);
+	
 	__inline static WorldServer* getInstance() {
 		return ROSEServer::getInstance<WorldServer>();
 	}
+	__inline const EquipmentSTB* getEquipmentSTB(uint8_t itemType) const {
+		return (itemType != ItemTypeList::CONSUMABLE.getTypeId() ? dynamic_cast<const EquipmentSTB*>(equipmentSTBs.get()[itemType]) : nullptr);
+	}
+	__inline const ConsumeSTBFile* getConsumeSTB() const {
+		return dynamic_cast<const ConsumeSTBFile*>(equipmentSTBs.get()[ItemTypeList::CONSUMABLE.getTypeId()]);
+	}
+	__inline Map* getMapById(const uint16_t mapId) const {
+		return mapId < MAP_AMOUNT ? maps[mapId] : nullptr;
+	}
+	ZMO* getAttackAnimationForPlayer(Player* player) const;
+	ZMO* getAttackAnimationForNpc(NPC* npc) const;
 };
 
 #endif //__ROSE_WORLDSERVER__

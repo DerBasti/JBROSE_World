@@ -14,9 +14,10 @@ private:
 protected:
 	virtual void appendContentToSendable(SendablePacket& packet) const;
 public:
-	const static uint16_t ID = 0x792;
+	const static uint16_t ID = 0x791;
 	SpawnNPCVisuallyResponsePacket(class NPC* monster);
 	virtual ~SpawnNPCVisuallyResponsePacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint16_t getNPCTypeId() const {
 		return typeId;

@@ -15,3 +15,9 @@ DespawnEntityVisuallyResponsePacket::~DespawnEntityVisuallyResponsePacket() {
 void DespawnEntityVisuallyResponsePacket::appendContentToSendable(SendablePacket& packet) const {
 	packet.addData(localId);
 }
+
+std::string DespawnEntityVisuallyResponsePacket::toPrintable() const {
+	char buf[0x80] = { 0x00 };
+	sprintf_s(buf, "[DespawnEntityVisuallyResponsePacket]\n\t* LocalId: %i", localId);
+	return std::string(buf);
+}

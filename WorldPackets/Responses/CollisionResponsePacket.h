@@ -18,6 +18,7 @@ public:
 	const static uint16_t ID = 0x771;
 	CollisionResponsePacket();
 	virtual ~CollisionResponsePacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint16_t getLocalEntityId() const {
 		return localId;

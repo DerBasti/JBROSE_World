@@ -1,20 +1,20 @@
 #include "NewDestinationRequestPacket.h"
-
+#include "../../../JBROSE_Common/FileReader.h"
 
 NewDestinationRequestPacket::NewDestinationRequestPacket(const Packet* packet) : Packet(ID, packet->getLength()) {
-	const char *basicPtr = packet->getRawData();
-	const uint16_t *wordPtr = reinterpret_cast<const uint16_t*>(basicPtr);
-	targetLocalId = *wordPtr;
+	LoadedDataReader reader(packet->getRawData());
+	targetLocalId = reader.readUShort();
 
-	basicPtr += 2;
-
-	const float *floatPtr = reinterpret_cast<const float*>(basicPtr);
-	destinationX = *floatPtr;
-	floatPtr++;
-
-	destinationY = *floatPtr;
+	destinationX = reader.readFloat();
+	destinationY = reader.readFloat();
 }
 
 NewDestinationRequestPacket::~NewDestinationRequestPacket() {
 
+}
+
+std::string NewDestinationRequestPacket::toPrintable() const {
+	char buf[0x80] = { 0x00 };
+	sprintf_s(buf, "[NewDestinationRequestPacket]\n\t* New destination (%.2f, %.2f) for local id: %i", destinationX, destinationY, targetLocalId);
+	return std::string(buf);
 }

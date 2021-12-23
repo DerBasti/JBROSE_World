@@ -1,11 +1,13 @@
 #include "MapRemovalRequest.h"
 #include "..\BasicTypes\Entity.h"
+#include "../Entities/NPC.h"
+#include "MonsterRecoveryPoint.h"
 
 std::shared_ptr<RemovalRequest> RemovalRequestFactory::createRemovalRequest(Entity* entity, RemovalReason reason) {
 	std::shared_ptr<RemovalRequest> removalRequest;
 	switch (reason) {
+		case RemovalReason::DROP_PICKUP:
 		case RemovalReason::MONSTER_DEATH:
-		break;
 		case RemovalReason::PLAYER_DISCONNECT:
 			removalRequest = std::shared_ptr<RemovalRequest>(
 				new RemovalRequest(entity->getLocationData()->getLocalId(), entity->getLocationData()->getCurrentMapSector())

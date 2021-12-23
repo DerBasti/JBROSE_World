@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
-#include "..\..\JBROSE_Common\FileReader.h"
+#include "../../JBROSE_Common/Logger.h"
 
 class STLEntryHeader {
 private:
@@ -67,16 +67,21 @@ private:
 	bool descriptionsFlag;
 	std::unordered_map<STLLanguage, std::unordered_map<uint32_t, STLEntry*>> entries;
 
-	std::vector<STLEntryHeader*> readAllEntryHeader(FileReader& reader, const uint32_t &entryAmount);
-	std::vector<uint32_t> readLanguageOffsets(FileReader& reader);
+	std::vector<STLEntryHeader*> readAllEntryHeader(class FileReader& reader, const uint32_t &entryAmount);
+	std::vector<uint32_t> readLanguageOffsets(class FileReader& reader);
 	void readAllEntryBodies(FileReader& reader, std::vector<STLEntryHeader*>& header, std::vector<uint32_t>& languageOffsets);
-	std::shared_ptr<char> readDescriptionWithPossibleLengthOverflow(FileReader& reader);
+	std::shared_ptr<char> readDescriptionWithPossibleLengthOverflow(class FileReader& reader);
+	ROSELogger logger;
 public:
-	STLFile(FileReader& reader);
+	STLFile(class FileReader& reader);
 	virtual ~STLFile();
 	
 	std::unordered_map<uint32_t, STLEntry*> getEntriesByLanguage(STLLanguage language) const {
-		return entries.at(language);
+		auto entry = entries.find(language);
+		if (entry != entries.cend()) {
+			return entry->second;
+		}
+		return std::unordered_map<uint32_t, STLEntry*>();
 	}
 
 	STLEntry* getEntry(uint32_t id) {

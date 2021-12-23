@@ -22,6 +22,7 @@ public:
 	virtual bool updateVisuality();
 
 	virtual std::shared_ptr<class SpawnEntityVisuallyResponsePacket> createSpawnVisuallyPacket();
+	Entity* findEntity(const uint16_t localId);
 
 	__inline bool isVisualityUpdateRequired() const {
 		return updateRequired;
@@ -54,6 +55,14 @@ class MonsterVisualityProcessor : public VisualityProcessor {
 public:
 	MonsterVisualityProcessor(Entity* entity);
 	virtual ~MonsterVisualityProcessor();
+
+	virtual std::shared_ptr<class SpawnEntityVisuallyResponsePacket> createSpawnVisuallyPacket();
+};
+
+class DropVisualityProcessor : public VisualityProcessor {
+public:
+	DropVisualityProcessor(Entity* entity);
+	virtual ~DropVisualityProcessor();
 
 	virtual std::shared_ptr<class SpawnEntityVisuallyResponsePacket> createSpawnVisuallyPacket();
 };

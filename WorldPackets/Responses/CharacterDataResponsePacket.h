@@ -61,6 +61,7 @@ protected:
 	void setStats(class PlayerStats* stats);
 	void setUnionData();
 	void setSkillData();
+	void setSkilledAttributes(class PlayerAttributeTypes* attributes);
 public:
 	const static uint16_t ID = 0x715;
 	CharacterDataResponsePacket(const class Player* player);

@@ -6,13 +6,13 @@
 
 class SpawnEntityVisuallyResponsePacket : public ResponsePacket {
 private:
-	enum VisualityActionBits : uint16_t {
+	enum VisualityAction : uint16_t {
 		IDLE, MOVING, FIGHTING, DEAD 
 	};
 	uint16_t entityLocalId;
 	Position currentPosition;
 	Position destinationPosition;
-	VisualityActionBits currentAction;
+	VisualityAction currentAction;
 	uint16_t targetLocalId;
 	uint8_t currentStance;
 	uint32_t currentHp;
@@ -20,11 +20,12 @@ private:
 	uint32_t buffBits;
 	const static uint16_t ID = 0x00;
 protected:
+	SpawnEntityVisuallyResponsePacket(uint16_t packetId);
 	SpawnEntityVisuallyResponsePacket(uint16_t packetId, class Entity* entity);
 	virtual void appendContentToSendable(SendablePacket& packet) const;
 public:
-	SpawnEntityVisuallyResponsePacket() = delete;
 	virtual ~SpawnEntityVisuallyResponsePacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint16_t getEntityLocalId() const {
 		return entityLocalId;

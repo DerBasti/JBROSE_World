@@ -11,7 +11,7 @@ class LocationData {
 private:
 	class Map* map;
 	class MapSector* currentSector;
-	PositionCollection* positionCollection;
+	MapPosition* mapPosition;
 	uint16_t localId;
 public:
 	LocationData();
@@ -24,11 +24,11 @@ public:
 	void setCurrentMapSector(MapSector* sector);
 
 
-	__inline PositionCollection* getPositionCollection() const {
-		return positionCollection;
+	__inline MapPosition* getMapPosition() const {
+		return mapPosition;
 	}
-	__inline void setPositionCollection(PositionCollection* positionCollection) {
-		this->positionCollection = positionCollection;
+	__inline void setMapPosition(MapPosition* positionCollection) {
+		this->mapPosition = positionCollection;
 	}
 
 	__inline uint16_t getLocalId() const {

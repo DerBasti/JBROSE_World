@@ -19,6 +19,8 @@ public:
 	virtual ~MapSector();
 
 	bool addEntity(Entity* entity);
+	bool hasEntity(const uint16_t id);
+	Entity* getEntity(const uint16_t id);
 	void removeEntity(Entity* entity);
 	void removeDisconnectingPlayer(uint16_t entityLocalId);
 
@@ -33,6 +35,9 @@ public:
 	}
 	__inline const Position& getCenterPosition() const {
 		return center;
+	}
+	__inline const std::unordered_map<uint16_t, class Entity*>& getAllEntitiesOfSector() const {
+		return entitiesInSector;
 	}
 };
 

@@ -15,6 +15,7 @@ public:
 	const static uint16_t ID = 0x792;
 	SpawnMonsterVisuallyResponsePacket(class Monster* monster);
 	virtual ~SpawnMonsterVisuallyResponsePacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint16_t getMonsterTypeId() const {
 		return typeId;

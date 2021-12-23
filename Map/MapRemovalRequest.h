@@ -23,7 +23,7 @@ public:
 };
 
 enum class RemovalReason : uint8_t {
-	TELEPORT, MONSTER_DEATH, PLAYER_DISCONNECT
+	TELEPORT, MONSTER_DEATH, PLAYER_DISCONNECT, DROP_PICKUP
 };
 
 class RemovalRequestFactory {

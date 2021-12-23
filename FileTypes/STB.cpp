@@ -1,19 +1,28 @@
 #include <algorithm>
 #include "STB.h"
 #include "..\..\JBROSE_Common\DirectoryParser.h"
+#include "..\..\JBROSE_Common\FileReader.h"
+#include "..\..\JBROSE_Common\FileStoredReader.h"
+#include "..\..\JBROSE_Common\Logger.h"
+
+ROSELogger logger;
 
 STBFile::STBFile(const char *filePath) {
 	this->filePath = std::string(filePath);
-	std::cout << "Loading STB: " << this->filePath.substr(this->filePath.find_last_of("\\")+1).c_str() << "\n";
+	logger.logDebug("Loading STB: ", this->filePath.substr(this->filePath.find_last_of("\\") + 1).c_str());
 	if (USE_TRANSLATIONS) {
+		logger.logDebug("Applying translation file to STB-entries.");
 		std::string stlPath = this->filePath.substr(0, this->filePath.find_last_of("."));
 		stlPath += "_S.STL";
 		if (DirectoryParser::isFileExistent(stlPath.c_str())) {
-			std::cout << "Loading Translations-File: " << stlPath.substr(stlPath.find_last_of("\\") + 1).c_str() << "\n";
-			translations = new STLFile(FileReader(stlPath.c_str()));
+			logger.logDebug("Loading Translations-File: ", stlPath.substr(stlPath.find_last_of("\\") + 1).c_str());
+			FileStoredReader reader(stlPath.c_str());
+			translations = new STLFile(reader);
 		}
 	}
+	logger.logDebug("Starting to read STB content...");
 	readContent();
+	logger.logDebug("Finished loading STB: ", this->filePath.substr(this->filePath.find_last_of("\\") + 1).c_str());
 }
 
 STBFile::~STBFile() {
@@ -24,19 +33,24 @@ STBFile::~STBFile() {
 }
 
 void STBFile::readContent() {
-	FileReader reader(filePath.c_str());
-	reader.skipBytes(4);
-	uint32_t offset = reader.readUInt();
-	rows = static_cast<uint16_t>(reader.readUInt() - 1);
-	columns = reader.readUInt() - 1;
-	entries.reserve(rows);
-	reader.setCaret(offset);
-	for (uint16_t i = 0; i < rows; i++) {
-		auto entry = new STBEntry(reader, i, columns);
-		if (USE_TRANSLATIONS) {
-			entry->updateTranslations(translations);
+	FileStoredReader reader(filePath.c_str());
+	if (reader.isValid()) {
+		reader.skipBytes(sizeof(uint32_t));
+		uint32_t offset = reader.readUInt();
+		rows = static_cast<uint16_t>(reader.readUInt() - 1);
+		logger.logTrace("Found a total of ", rows, " rows.");
+		columns = reader.readUInt() - 1;
+		logger.logTrace("Found a total of ", columns, " columns.");
+		entries.reserve(rows);
+		reader.resetCaretTo(offset);
+		
+		for (uint16_t i = 0; i < rows; i++) {
+			auto entry = new STBEntry(reader, i, columns);
+			if (USE_TRANSLATIONS) {
+				entry->updateTranslations(translations);
+			}
+			entries.insert(std::move(std::make_pair(i, entry)));
 		}
-		entries.insert(std::make_pair(i, entry));
 	}
 }
 
@@ -44,11 +58,12 @@ STBEntry::STBEntry(FileReader& reader, uint32_t rowId, uint16_t columnAmount) {
 	this->rowId = rowId;
 	this->columnAmount = columnAmount;
 	values.reserve(columnAmount);
+	valuesAsInt.reserve(columnAmount);
 	for (uint16_t i = 0; i < columnAmount; i++) {
 		uint16_t length = reader.readUShort();
-		auto stringData = reader.readString(length);
-		values.insert(std::make_pair(i, stringData));
-		valuesAsInt.insert(std::make_pair(i, static_cast<uint32_t>(atol(stringData.get()))));
+		auto stringData = reader.readStringWrapped(length);
+		values.insert(std::move(std::make_pair(i, stringData)));
+		valuesAsInt.insert(std::move(std::make_pair(i, static_cast<uint32_t>(atol(stringData.get())))));
 	}
 
 }

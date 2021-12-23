@@ -1,28 +1,32 @@
 #include "SpawnEntityVisuallyResponsePacket.h"
 #include "..\..\BasicTypes\Entity.h"
 
-SpawnEntityVisuallyResponsePacket::SpawnEntityVisuallyResponsePacket(uint16_t id, Entity* entity) : ResponsePacket(id) {
+SpawnEntityVisuallyResponsePacket::SpawnEntityVisuallyResponsePacket(uint16_t packetId) : ResponsePacket(packetId) {
+
+}
+
+SpawnEntityVisuallyResponsePacket::SpawnEntityVisuallyResponsePacket(uint16_t id, Entity* entity) : SpawnEntityVisuallyResponsePacket(id) {
 	auto locationData = entity->getLocationData();
 	entityLocalId = locationData->getLocalId();
-	currentPosition = locationData->getPositionCollection()->getCurrentPosition();
-	destinationPosition = locationData->getPositionCollection()->getDestinationPosition();
+	currentPosition = locationData->getMapPosition()->getCurrentPosition();
+	destinationPosition = locationData->getMapPosition()->getDestinationPosition();
 
 	if (currentPosition != destinationPosition) {
-		currentAction = VisualityActionBits::MOVING;
+		currentAction = VisualityAction::MOVING;
 	}
 	else {
-		currentAction = VisualityActionBits::IDLE;
+		currentAction = VisualityAction::IDLE;
 	}
 
-	targetLocalId = 0;
-	currentStance = 0;
-	currentHp = 50;
-	teamId = 1;
+	targetLocalId = entity->getCombat()->getTarget() != nullptr ? entity->getCombat()->getTarget()->getLocationData()->getLocalId() : 0x00;
+	currentStance = entity->getStance()->getStanceId();
+	currentHp = entity->getStats()->getCurrentHp();
+	teamId = entity->getCombat()->getTeamId();
 	buffBits = 0;
 }
 
 SpawnEntityVisuallyResponsePacket::~SpawnEntityVisuallyResponsePacket() {
-
+	  
 }
 
 void SpawnEntityVisuallyResponsePacket::appendContentToSendable(SendablePacket& packet) const {
@@ -37,4 +41,10 @@ void SpawnEntityVisuallyResponsePacket::appendContentToSendable(SendablePacket& 
 	packet.addData(currentHp);
 	packet.addData(teamId);
 	packet.addData(buffBits);
+}
+
+std::string SpawnEntityVisuallyResponsePacket::toPrintable() const {
+	char buf[0x60] = { 0x00 };
+	sprintf_s(buf, "[SpawnEntityVisuallyResponsePacket]\n\t* Entity local id: %i\n\t* Position: %.2f, %.2f", entityLocalId, currentPosition.getX(), currentPosition.getY());
+	return std::string(buf);
 }

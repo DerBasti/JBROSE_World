@@ -13,3 +13,9 @@ void CurrentWeightResponsePacket::appendContentToSendable(SendablePacket& packet
 	packet.addData(localPlayerId);
 	packet.addData(weightPercentage);
 }
+
+std::string CurrentWeightResponsePacket::toPrintable() const {
+	char buf[0x80] = { 0x00 };
+	sprintf_s(buf, "[CurrentWeightResponsePacket]\n\t* LocalId: %i\n\t* Weight Percentage: %i", localPlayerId, weightPercentage);
+	return std::string(buf);
+}

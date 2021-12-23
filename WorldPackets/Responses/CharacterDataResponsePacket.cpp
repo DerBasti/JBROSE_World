@@ -1,29 +1,32 @@
 #include "CharacterDataResponsePacket.h"
 #include "..\..\WorldClient.h"
+#include "../../Map/Map.h"
+#include "../../WorldServer.h"
 
 CharacterDataResponsePacket::CharacterDataResponsePacket(const Player* player) : ResponsePacket(ID) {
-	this->mapId = 22;
-	auto current = player->getLocationData()->getPositionCollection()->getCurrentPosition();
+	this->mapId = player->getLocationData()->getMap()->getId();
+	auto current = player->getLocationData()->getMapPosition()->getCurrentPosition();
 	this->xCoordinate = current.getX();
 	this->yCoordinate = current.getY();
 	setBasicInformation(player->getTraits());
 	setStats(player->getStats());
 	setUnionData();
 	setSkillData();
+	setSkilledAttributes(player->getAttributes());
 	unknown1 = unknown2 = unknown3 = unknown4 = 0;
 	unknown5 = 0;
 
 	auto inventory = player->getInventory();
 
-	const uint8_t visibleSlots[] = {
-		ItemTypeList::HEADGEAR.getInventorySlot(),
-		ItemTypeList::ARMOR.getInventorySlot(),
-		ItemTypeList::GLOVES.getInventorySlot(),
-		ItemTypeList::SHOES.getInventorySlot(),
-		ItemTypeList::FACE.getInventorySlot(),
-		ItemTypeList::BACK.getInventorySlot(),
-		ItemTypeList::WEAPON.getInventorySlot(),
-		ItemTypeList::SHIELD.getInventorySlot()
+	const static uint8_t visibleSlots[] = {
+		ItemTypeList::HEADGEAR.getInventorySlotId(),
+		ItemTypeList::ARMOR.getInventorySlotId(),
+		ItemTypeList::GLOVES.getInventorySlotId(),
+		ItemTypeList::SHOES.getInventorySlotId(),
+		ItemTypeList::FACE.getInventorySlotId(),
+		ItemTypeList::BACK.getInventorySlotId(),
+		ItemTypeList::WEAPON.getInventorySlotId(),
+		ItemTypeList::SHIELD.getInventorySlotId()
 	};
 
 	for (uint8_t i = 0; i < 8; i++) {
@@ -50,6 +53,7 @@ void CharacterDataResponsePacket::setBasicInformation(PlayerTraits* traits) {
 	this->saveSpotId = traits->getSavedSpotId();
 	this->birthPlace = 0;
 	this->birthstone = 0;
+	this->jobId = static_cast<uint16_t>(traits->getJob().getId());
 }
 
 void CharacterDataResponsePacket::setStats(PlayerStats* stats) {
@@ -57,17 +61,20 @@ void CharacterDataResponsePacket::setStats(PlayerStats* stats) {
 	this->currentMp = stats->getCurrentMp();
 	this->experiencePoints = stats->getExperiencePoints();
 	this->level = stats->getLevel();
-	this->jobId = stats->getJobId();
-	this->skilledCharm = 10;
-	this->skilledConcentration = 15;
-	this->skilledDexterity = 15;
-	this->skilledIntelligence = 15;
-	this->skilledSensibility = 10;
-	this->skilledStrength = 15;
 	this->skillPoints = stats->getAvailableSkillPoints();
 	this->stamina = stats->getStamina();
 	this->statPoints = stats->getAvailableStatPoints();
 }
+
+void CharacterDataResponsePacket::setSkilledAttributes(PlayerAttributeTypes* attributes) {
+	this->skilledStrength = attributes->getStrength()->getPointsLearned();
+	this->skilledDexterity = attributes->getDexterity()->getPointsLearned();
+	this->skilledIntelligence = attributes->getIntelligence()->getPointsLearned();
+	this->skilledConcentration = attributes->getConcentration()->getPointsLearned();
+	this->skilledCharm = attributes->getCharm()->getPointsLearned();
+	this->skilledSensibility = attributes->getSensibility()->getPointsLearned();
+}
+
 void CharacterDataResponsePacket::setUnionData() {
 	this->unionFame = 0;
 	this->unionId = 0;
@@ -76,6 +83,7 @@ void CharacterDataResponsePacket::setUnionData() {
 		this->unionPoints[i] = 0;
 	}
 }
+
 void CharacterDataResponsePacket::setSkillData() {
 	for (uint16_t i = 0; i < 120; i++) {
 		learnedSkills[i] = 0x00;
@@ -148,7 +156,7 @@ void CharacterDataResponsePacket::appendContentToSendable(SendablePacket& packet
 }
 
 std::string CharacterDataResponsePacket::toPrintable() const {
-	char buf[0x200] = { 0x00 };
-	sprintf_s(buf, "[CharacterDataResponsePacket]\n\t* Name: %s\n\t* Id: %i\n", characterName.c_str(), characterId);
+	char buf[0x300] = { 0x00 };
+	sprintf_s(buf, "[CharacterDataResponsePacket]\n\t* Name: %s\n\t* Id: %i\n\t* MapName: %s", characterName.c_str(), characterId, WorldServer::getInstance()->getMapById(mapId)->getName());
 	return std::string(buf);
 }

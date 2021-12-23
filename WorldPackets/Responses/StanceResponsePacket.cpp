@@ -15,3 +15,9 @@ void StanceResponsePacket::appendContentToSendable(SendablePacket& packet) const
 	packet.addData(stanceType);
 	packet.addData(movementSpeed);
 }
+
+std::string StanceResponsePacket::toPrintable() const {
+	char buf[0x100] = { 0x00 };
+	sprintf_s(buf, "[StanceResponsePacket]\n\t* Entity local id: %i\n\t* StanceID: %i\n\t* Resulting Movementspeed: %i", localId, stanceType, movementSpeed);
+	return std::string(buf);
+}

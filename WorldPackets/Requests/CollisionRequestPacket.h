@@ -15,6 +15,7 @@ public:
 	const static uint16_t ID = 0x771;
 	CollisionRequestPacket(const Packet* packet);
 	virtual ~CollisionRequestPacket();
+	virtual std::string toPrintable() const;
 
 	__inline const Position& getCollisionPosition() const {
 		return collisionPosition;

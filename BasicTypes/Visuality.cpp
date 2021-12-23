@@ -2,6 +2,8 @@
 #include "Entity.h"
 #include "..\Entities\Monster.h"
 #include "..\WorldClient.h"
+#include "../Entities/Drop.h"
+#include "..\WorldPackets\Responses\SpawnDropVisuallyResponsePacket.h"
 #include "..\WorldPackets\Responses\SpawnEntityVisuallyResponsePacket.h"
 #include "..\WorldPackets\Responses\SpawnPlayerVisuallyResponsePacket.h"
 #include "..\WorldPackets\Responses\SpawnMonsterVisuallyResponsePacket.h"
@@ -12,7 +14,7 @@
 
 VisualityProcessor::VisualityProcessor(Entity* entity) {
 	this->entity = entity; 
-	updateRequired = false;
+	updateRequired = true;
 }
 
 VisualityProcessor::~VisualityProcessor() {
@@ -52,6 +54,17 @@ bool VisualityProcessor::updateVisuality() {
 	});
 	setVisualityUpdateRequired(false);
 	return true;
+}
+
+Entity* VisualityProcessor::findEntity(const uint16_t localId) {
+	Entity* result = nullptr;
+	std::find_if(visibleSectors.cbegin(), visibleSectors.cend(), [&localId, &result](std::pair<uint32_t, MapSector*> pair) {
+		auto currentSector = pair.second;
+		Entity* foundEntity = currentSector->getEntity(localId);
+		result = foundEntity;
+		return foundEntity != nullptr;
+	});
+	return result;
 }
 
 /*
@@ -97,4 +110,19 @@ PlayerVisualityProcessor::~PlayerVisualityProcessor() {
 
 std::shared_ptr<SpawnEntityVisuallyResponsePacket> PlayerVisualityProcessor::createSpawnVisuallyPacket() {
 	return std::shared_ptr<SpawnPlayerVisuallyResponsePacket>(new SpawnPlayerVisuallyResponsePacket(dynamic_cast<Player*>(getEntity())));
+}
+
+/*
+============== Drop ===============
+*/
+
+DropVisualityProcessor::DropVisualityProcessor(Entity* entity) : VisualityProcessor(entity) {
+}
+
+DropVisualityProcessor::~DropVisualityProcessor() {
+
+}
+
+std::shared_ptr<SpawnEntityVisuallyResponsePacket> DropVisualityProcessor::createSpawnVisuallyPacket() {
+	return std::shared_ptr<SpawnDropVisuallyResponsePacket>(new SpawnDropVisuallyResponsePacket(dynamic_cast<Drop*>(getEntity())));
 }

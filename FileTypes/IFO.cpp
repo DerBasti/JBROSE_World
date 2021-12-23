@@ -1,7 +1,7 @@
 #include "IFO.h"
 
 IFOFile::IFOFile(const char* path) {
-	FileReader reader(path);
+	FileInputReader reader(path);
 	readContent(reader);
 }
 
@@ -22,12 +22,12 @@ void IFOFile::readContent(FileReader& reader) {
 			continue;
 		}
 		auto currentOffset = reader.getCaret();
-		reader.setCaret(typeOffset);
+		reader.resetCaretTo(typeOffset);
 		std::vector<std::shared_ptr<IFOEntry>> typedEntries = readTypedEntry(reader, type);
 		if (!typedEntries.empty()) {
-			entries.insert(std::make_pair(type, typedEntries));
+			entries.insert(std::move(std::make_pair(type, typedEntries)));
 		}
-		reader.setCaret(currentOffset);
+		reader.resetCaretTo(currentOffset);
 	}
 }
 
@@ -58,7 +58,7 @@ IFOEntry::~IFOEntry() {
 
 void IFOEntry::readBasicStructure(FileReader& reader) {
 	uint8_t strLen = reader.readByte();
-	stringData = reader.readString(strLen);
+	stringData = reader.readStringWrapped(strLen);
 	warpSTBId = reader.readUShort();
 	eventId = reader.readUShort();
 	objectType = reader.readUInt();
@@ -101,27 +101,47 @@ IFOMonsterSpawnEntry::~IFOMonsterSpawnEntry() {
 
 }
 
+std::mutex fileMutex;
+
 void IFOMonsterSpawnEntry::readSpecialized(FileReader& reader) {
 	uint8_t strLen = reader.readByte();
-	spawnName = reader.readString(strLen);
+	spawnName = reader.readStringWrapped(strLen);
 	readRounds(reader, basicRounds, false);
 	readRounds(reader, tacticalRounds, true);
-	respawnInterval = reader.readUInt();
+	respawnInterval = reader.readUInt() * 1000;
 	maximumAmountOfMonsters = reader.readUInt();
 	maximumRadiusForSpawn = static_cast<float>(reader.readUInt()) * 100.0f;
-	tacticalPointsNecessary = reader.readUInt();
+	tacticalPointsNecessary = reader.readUInt();	
 }
 	
 void IFOMonsterSpawnEntry::readRounds(FileReader& reader, std::vector<std::shared_ptr<Round>>& roundVector, bool isTactical) {
 	uint32_t amountOfSpawns = reader.readUInt();
 	for (uint32_t j = 0; j < amountOfSpawns; j++) {
 		uint8_t spawnNameLen = reader.readByte();
-		auto spawnName = reader.readString(spawnNameLen);
+		auto spawnName = reader.readStringWrapped(spawnNameLen);
 		uint32_t monsterId = reader.readUInt();
 		uint32_t amount = reader.readUInt() + 1;
 		std::shared_ptr<Round> round = std::shared_ptr<Round>(new Round(monsterId, amount, isTactical));
-		roundVector.push_back(round);
+		roundVector.emplace_back(std::move(round));
 	}
+}
+
+std::string IFOMonsterSpawnEntry::toPrintable() const {
+	std::string resultString = std::string();
+	char buffer[0x200] = { 0x00 };
+	sprintf_s(buffer, "[Maximum Monsters: %i - Respawn Time in seconds: %I64i - Spawnradius: %.2fm]\n[Basic Rounds: %I64i]\n", maximumAmountOfMonsters, respawnInterval, maximumRadiusForSpawn, basicRounds.size());
+	resultString += buffer;
+	for(uint32_t i=0;i<basicRounds.size();i++){ 
+		sprintf_s(buffer, "\t* MonsterType: %i, Amount: %i\n", basicRounds.at(i)->getMonsterId(), basicRounds.at(i)->getMonsterAmount());
+		resultString += buffer;
+	}
+	sprintf_s(buffer, "[Tactical rounds: %I64i]\n", tacticalRounds.size());
+	resultString += buffer;
+	for (uint32_t i = 0; i < tacticalRounds.size(); i++) {
+		sprintf_s(buffer, "\t* MonsterType: %i, Amount: %i\n", tacticalRounds.at(i)->getMonsterId(), tacticalRounds.at(i)->getMonsterAmount());
+		resultString += buffer;
+	}
+	return resultString;
 }
 
 IFONPCLocationEntry::IFONPCLocationEntry(FileReader& reader) : IFOEntry(reader) {
@@ -135,5 +155,5 @@ IFONPCLocationEntry::~IFONPCLocationEntry() {
 void IFONPCLocationEntry::readSpecialized(FileReader& reader) {
 	aiId = reader.readUInt();
 	uint8_t strLen = reader.readByte();
-	conFile = reader.readString(strLen);
+	conFile = reader.readStringWrapped(strLen);
 }

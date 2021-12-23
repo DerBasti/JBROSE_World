@@ -2,18 +2,18 @@
 
 ZONFile::ZONFile(const char* path) {
 	filePath = std::string(path);
-	FileReader reader(path);
+	FileInputReader reader(path);
 	std::vector<ZoneData::ZoneType> zoneTypes;
 	std::vector<uint32_t> offsetsInFile;
 
 	zoneTypeAmount = reader.readUInt();
 	for (uint32_t i = 0; i < zoneTypeAmount; i++) {
-		zoneTypes.push_back(ZoneData::ZoneType(reader.readUInt()));
-		offsetsInFile.push_back(reader.readUInt());
+		zoneTypes.emplace_back(std::move(ZoneData::ZoneType(reader.readUInt())));
+		offsetsInFile.emplace_back(reader.readUInt());
 	}
 
 	for (uint32_t i = 0; i < zoneTypeAmount; i++) {
-		reader.setCaret(offsetsInFile.at(i));
+		reader.resetCaretTo(offsetsInFile.at(i));
 		switch (zoneTypes.at(i)) {
 			case ZoneData::ZoneType::GENERIC:
 				genericData.push_back(new GenericZoneData(reader));
@@ -35,6 +35,17 @@ ZONFile::ZONFile(const char* path) {
 	if (event != nullptr) {
 		mapCenter = event->getCenterPosition();
 	}
+}
+
+
+std::vector<EventZoneData*> ZONFile::getAllEventWithName(const char* name) const {
+	std::vector<EventZoneData*> events;
+	for (auto event : eventData) {
+		if (_stricmp(event->getEventName().get(), name) == 0) {
+			events.push_back(event);
+		}
+	}
+	return events;
 }
 
 ZONFile::~ZONFile() {
@@ -72,6 +83,12 @@ EventZoneData* ZONFile::getEventByName(const char* name, const char* defaultEven
 	return zoneDataToBeFound;
 }
 
+std::vector<EventZoneData*> ZONFile::getAllRestorePoints() const {
+	std::vector<EventZoneData*> restorePoints = std::move(getAllEventWithName("restore"));
+	restorePoints.push_back(getEventByName("start"));
+	return restorePoints;
+}
+
 ZoneData::ZoneData(const ZoneType& type) {
 	this->type = type;
 }
@@ -90,15 +107,15 @@ EconomyZoneData::~EconomyZoneData() {
 
 void EconomyZoneData::readEconomyData(FileReader& reader) {
 	uint8_t stringLength = reader.readByte();
-	unknownString = reader.readString(stringLength);
+	unknownString = reader.readStringWrapped(stringLength);
 
 	dungeonFlag = reader.readUInt() > 0;
 
 	stringLength = reader.readByte();
-	musicName = reader.readString(stringLength);
+	musicName = reader.readStringWrapped(stringLength);
 
 	stringLength = reader.readByte();
-	modelName = reader.readString(stringLength);
+	modelName = reader.readStringWrapped(stringLength);
 
 	townCounter = reader.readUInt();
 	populationCounter = reader.readUInt();
@@ -127,7 +144,7 @@ void EventZoneData::readEvent(FileReader& reader) {
 
 	uint8_t eventNameLength = reader.readByte();
 	if (eventNameLength > 0) {
-		eventName = reader.readString(eventNameLength);
+		eventName = reader.readStringWrapped(eventNameLength);
 	}
 }
 
@@ -150,4 +167,15 @@ void GenericZoneData::readGenericData(FileReader& reader) {
 
 	centerIfoX = static_cast<uint8_t>(reader.readUInt());
 	centerIfoY = static_cast<uint8_t>(reader.readUInt());
+}
+
+
+RestorePoint::RestorePoint(uint32_t id, uint16_t mapId, EventZoneData* rawRestorePointData) {
+	this->restorePointId = id;
+	this->mapId = mapId;
+	this->center = rawRestorePointData->getCenterPosition();
+}
+
+RestorePoint::~RestorePoint() {
+
 }

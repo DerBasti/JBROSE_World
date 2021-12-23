@@ -17,6 +17,7 @@ public:
 
 	CurrentWeightResponsePacket();
 	virtual ~CurrentWeightResponsePacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint16_t getLocalPlayerId() const {
 		return localPlayerId;

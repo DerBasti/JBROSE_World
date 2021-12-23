@@ -1,12 +1,19 @@
 #include "WorldServer.h"
 #include "WorldPackets\WorldServerPacketFactory.h"
 #include "BasicTypes\Item.h"
+#include "Entities/Drop.h"
 #include "Entities/Monster.h"
 #include "..\JBROSE_Common\DirectoryParser.h"
+#include "FileTypes/AIP.h"
 #include "FileTypes/IFO.h"
 #include "FileTypes/ZON.h"
 #include "Map/MapRemovalRequest.h"
 #include "WorldPackets/Responses/TelegateResponsePacket.h"
+#include "BasicTypes/RegenerationProcessor.h"
+#include <future>
+#include <thread>
+#include <chrono>
+#include <iostream>
 
 WorldServer::WorldServer(uint16_t port) : ROSEServer(port) {
 	setPacketFactoryCreatorFunction([]() {
@@ -15,10 +22,26 @@ WorldServer::WorldServer(uint16_t port) : ROSEServer(port) {
 }
 
 WorldServer::~WorldServer() {
+	NPCCreationFactory::deleteAllEntries();
+
 	std::for_each(telegates.begin(), telegates.end(), [](std::pair<uint16_t, Telegate*> gatePair) {
 		delete gatePair.second;
 		gatePair.second = nullptr;
 	});
+	std::for_each(zoneFiles.begin(), zoneFiles.end(), [](std::pair<uint32_t, ZONFile*> zonPair) {
+		delete zonPair.second;
+		zonPair.second = nullptr;
+	});
+	std::for_each(attackAnimations.begin(), attackAnimations.end(), [](std::pair<uint32_t, ZMO*> zmoPair) {
+		delete zmoPair.second;
+		zmoPair.second = nullptr;
+	});
+
+	if (npcAnimationFile != nullptr) {
+		delete npcAnimationFile;
+		npcAnimationFile = nullptr;
+	}
+
 }
 
 void WorldServer::loadEncryption() {
@@ -51,74 +74,172 @@ bool WorldServer::onPacketsReady(std::shared_ptr<ROSEClient>& roseClient, std::q
 
 void WorldServer::onServerStartup() {
 	Timer timer;
-	std::cout << "Starting up server...\n";
+	logger.logInfo("Starting up server...");
 	loadFileEntries();
+	loadAttackAnimationTimings();
+	loadAi();
 	loadNpcDefaultValues();
 	createMaps();
-	std::cout << "Startup finished!\n";
-	std::cout << "Startup took: " << timer.getPassedTimeInMillis() << "ms\n";
+	logger.logInfo("Startup finished!");		
+	logger.logInfo("Startup took: ", timer.getPassedTimeInMillis(), "ms");
 }
 
 void WorldServer::loadFileEntries() {
-	std::cout << "Loading STBs...\n";
+	clock_t timeStart = clock();
+	logger.logInfo("Loading STBs...");
+	
 	npcSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_NPC.STB"));
+	aiSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\FILE_AI.STB"));
 	warpSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\WARP.STB"));
-	zoneSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_ZONE.STB"));
-	std::cout << "Finished loading STBs including translations!\n";
-	std::cout << "Loading Zone-Files...\n";
+	zoneSTB = std::shared_ptr<ZoneSTBFile>(new ZoneSTBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_ZONE.STB"));
+		
+	equipmentSTBs = std::shared_ptr<STBFile*>(new STBFile*[15], [](STBFile** ptr) {
+		for (uint16_t i = 0; i < 15; i++) {
+			delete ptr[i];
+			ptr[i] = nullptr;
+		}
+		delete[] ptr;
+		ptr = nullptr;
+	});
+	
+	std::thread stbThreads[14];
+
+	stbThreads[0] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::ARMOR.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_BODY.STB");
+	});
+	stbThreads[1] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::BACK.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_BACK.STB");
+	});
+	stbThreads[2] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::CONSUMABLE.getTypeId()] = new ConsumeSTBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_USEITEM.STB");
+	});
+	stbThreads[3] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::FACE.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_FACEITEM.STB");
+	});
+	stbThreads[4] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::GLOVES.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_ARMS.STB");
+	});
+	stbThreads[5] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::HEADGEAR.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_CAP.STB");
+	});
+	stbThreads[6] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::JEWELS.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_JEMITEM.STB");
+	});
+	stbThreads[7] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::JEWELRY.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_JEWEL.STB");
+	});
+	stbThreads[8] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::OTHER.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_NATURAL.STB");
+	});
+	stbThreads[9] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::PAT.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_PAT.STB");
+	});
+	stbThreads[10] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::QUEST.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_QUESTITEM.STB");
+	});
+	stbThreads[11] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::SHIELD.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_SUBWPN.STB");
+	});
+	stbThreads[12] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::SHOES.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_FOOT.STB");
+	});
+	stbThreads[13] = std::thread([this]() {
+		equipmentSTBs.get()[ItemTypeList::WEAPON.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_WEAPON.STB");
+	});
+	for (uint16_t i = 0; i < 14; i++) {
+		stbThreads[i].join();
+	}
+	ConsumableItemList::loadListFromStb(getConsumeSTB());
+	
+	clock_t duration = clock() - timeStart;
+	logger.logInfo("Finished loading STBs including translations in ",duration,"ms!");
+	logger.logInfo("Loading Zone-Files...");
 	loadZONFiles();
-	std::cout << "Finished loading Zone-Files...\n";
+	logger.logInfo("Finished loading Zone-Files...");
+}
+
+void WorldServer::loadAi() {
+	/*logger.logInfo("Loading AI...");
+	for (uint32_t i = 0; i < aiSTB->getEntryAmount(); i++) {
+		auto stbEntry = aiSTB->getEntry(i);
+		std::string aiFileName = std::string("D:\\Games\\ROSE Server\\VFS_Extrator\\");
+		aiFileName = aiFileName.append(std::string(stbEntry->getColumnData(0x00)));
+		if (DirectoryParser::isFileExistent(aiFileName.c_str())) {
+			AIP* aiProtocol = new AIP(aiFileName.c_str());
+			aiProtocols.insert(std::make_pair(i, aiProtocol));
+		}
+	}
+	logger.logInfo("Finished loading AI.");*/
 }
 
 void WorldServer::loadZONFiles() {
 	std::string basicPath = "D:\\Games\\ROSE Server\\VFS_Extrator\\";
+	const uint32_t pathColumnId = 1;
 	for (uint32_t i = 1; i < zoneSTB->getEntryAmount(); i++) {
 		auto row = zoneSTB->getEntry(i);
-		auto path = row->getColumnData(1);
-		std::string realPath = basicPath + std::string(path.get());
+		auto path = row->getColumnData(pathColumnId);
+		std::string realPath = basicPath + std::string(path);
+		std::pair<uint32_t,ZONFile*> pair = std::make_pair(i, nullptr);
 		if (realPath.length() == basicPath.length() || !DirectoryParser::isFileExistent(realPath.c_str())) {
-			zoneFiles.insert(std::make_pair(i, nullptr));
+			zoneFiles.insert(std::move(pair));
 			continue;
 		}
-		zoneFiles.insert(std::make_pair(i, new ZONFile(realPath.c_str())));
+		pair.second = new ZONFile(realPath.c_str());
+		auto rawRestorePoints = pair.second->getAllRestorePoints();
+		for (auto rawRestorePoint : rawRestorePoints) {
+			restorePoints.push_back(new RestorePoint(static_cast<uint32_t>(restorePoints.size()), i, rawRestorePoint));
+		}
+		zoneFiles.insert(std::move(pair));
 	}
+}
+
+void WorldServer::loadAttackAnimationTimings() {
+	auto motionSTB = new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\FILE_MOTION.STB");
+	const char* basePath = "D:\\Games\\ROSE Server\\VFS_Extrator\\";
+	for (uint32_t i = 0; i < motionSTB->getEntryAmount(); i++) {
+		std::string zmoPath = std::string(basePath) + motionSTB->getEntry(i)->getColumnData(0);
+		ZMO* zmo = new ZMO(zmoPath.c_str());
+		attackAnimations.insert(std::make_pair(i, zmo));
+	}
+	delete motionSTB;
+
+	motionTypesSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\TYPE_MOTION.STB"));
+	npcAnimationFile = new CHRFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\NPC\\LIST_NPC.CHR");
 }
 
 void WorldServer::loadNpcDefaultValues() {
-	auto allEntries = npcSTB->getAllEntries();
-	for (auto it = allEntries.cbegin(); it != allEntries.cend(); it++) {
-		auto entry = it->second;
-		npcDefaultStatValues.insert(std::make_pair(it->first, new NPCDefaultStatValues(it->first, entry)));
-	}
+	NPCCreationFactory::initializeFromSTB(npcSTB.get(), aiSTB.get());
 }
 
 void WorldServer::createMaps() {
+	logger.logInfo("Amount of zones: ", zoneSTB->getEntryAmount());
 	const std::string basicPath = "D:\\Games\\ROSE Server\\VFS_Extrator\\";
-	std::cout << "Amount of zones: " << zoneSTB->getEntryAmount() << "\n";
 	for (uint16_t i = 1; i < zoneSTB->getEntryAmount(); i++) {
-		std::string path = std::string(zoneSTB->getEntry(i)->getColumnData(0x01).get());
-		path = path.substr(0, path.find_last_of('\\'));
-		DirectoryParser parser((basicPath + path).c_str());
-		Map* currentMap = nullptr;
-		if (!path.empty() && parser.isDirectoryExistent()) {
-			currentMap = new Map(i);
-			std::cout << "Starting up Map[" << zoneSTB->getEntry(i)->getColumnData(0) << "].\n";
-			loadIFOData(currentMap, parser);
-			mapThreads[i] = std::thread([this](Map* map) {
+		mapThreads[i] = std::thread([this, basicPath](int mapId) {
+			std::string path = std::string(zoneSTB->getEntry(mapId)->getColumnData(0x01));
+			path = path.substr(0, path.find_last_of('\\'));
+			WindowsDirectoryParser parser((basicPath + path).c_str());
+			Map* currentMap = nullptr;
+			if (!path.empty() && parser.isPathExistent()) {
+				currentMap = new Map(mapId, zoneSTB->getEntry(mapId)->getColumnData(0), this->zoneFiles.at(mapId), zoneSTB.get());
+				maps[mapId] = currentMap;
+				logger.logInfo("Starting up Map[", currentMap->getName(), "].");
+				currentMap->addRestorePoints(restorePoints);
+				loadIFOData(currentMap, parser);
 				while (true) {
-					map->updateEntities();
-					Sleep(20);
+					currentMap->updateEntities();
+					Sleep(16);
 				}
-			}, currentMap);
-			std::cout << "Finished start-up of Map[" << zoneSTB->getEntry(i)->getColumnData(0) << "].\n";
-		}
-		maps[i] = currentMap;
+				logger.logInfo("Finished start-up of Map[",zoneSTB->getEntry(mapId)->getColumnData(0), "].");
+			}
+		}, i);
 	}
 }
 
 void WorldServer::loadIFOData(Map* map, DirectoryParser& parser) {
-	parser.setFileExtension(".IFO");
-	auto files = parser.getFiles();
+	parser.setFileExtensionToSearchFor(".IFO");
+	parser.loadFileList();
+	auto files = parser.getFileList();
 	for (auto& file : files) {
 		IFOFile ifo(file);
 		loadNPCs(map, ifo);
@@ -134,9 +255,8 @@ void WorldServer::loadNPCs(Map* map, const IFOFile& file) {
 	auto npcs = file.getTypedEntry(IFOFile::BlockType::NPCLOCATION);
 	for (auto& npcEntry : npcs) {
 		const Position& pos = npcEntry->getPosition();
-		auto npcDefaultValues = getNPCDefaultValue(npcEntry->getObjectId());
-		Entity* npc = new NPC(npcDefaultValues, pos);
-		npc->getLocationData()->getPositionCollection()->setDirection(npcEntry->getDirection());
+		Entity* npc = NPCCreationFactory::createNpc(npcEntry->getObjectId(), pos);
+		npc->getLocationData()->getMapPosition()->setDirection(npcEntry->getDirection());
 		map->addEntityToInsertionQueue(npc);
 	}
 }
@@ -147,25 +267,10 @@ void WorldServer::loadMonsters(Map* map, const IFOFile& file) {
 	}
 	auto spawns = file.getTypedEntry(IFOFile::BlockType::MONSTERSPAWN);
 	for (auto& entry : spawns) {
-		IFOMonsterSpawnEntry* spawn = dynamic_cast<IFOMonsterSpawnEntry*>(entry.get());
-		uint32_t amount = 0;
-		uint32_t idx = 0;
-		auto basicRounds = spawn->getBasicRounds();
-		while (amount < spawn->getMaximumAmountOfMonsters()) {
-			auto round = basicRounds.at(idx);
-			for (uint16_t x = 0; x < round->getMonsterAmount(); x++) {
-				Position pos = spawn->getPosition();
-				pos.setX(pos.getX() + (rand() / static_cast<float>(RAND_MAX)) * spawn->getMaximumRadius());
-				pos.setY(pos.getY() + (rand() / static_cast<float>(RAND_MAX)) * spawn->getMaximumRadius());
-				map->addEntityToInsertionQueue(new Monster(npcDefaultStatValues.at(round->getMonsterId()), pos));
-				amount++;
-			}
-			idx++;
-			if (idx >= basicRounds.size()) {
-				idx = 0;
-			}
-		}
+		std::shared_ptr<IFOMonsterSpawnEntry>& spawn = (std::shared_ptr<IFOMonsterSpawnEntry>&)(entry);
+		map->addMonsterSpawn(spawn);
 	}
+	map->checkForMonsterRespawns();
 }
 
 void WorldServer::loadTelegates(Map* map, const IFOFile& file) {
@@ -188,29 +293,37 @@ void WorldServer::extractTelegateFromIfo(std::vector<std::shared_ptr<IFOEntry>> 
 		auto gateName = warpDestinationEntry->getColumnData(2);
 		auto zonFile = zoneFiles.at(mapId);
 		Telegate* telegate = nullptr;
-		EventZoneData *telegateZoneData = zonFile->getEventByName(gateName.get());
+		EventZoneData *telegateZoneData = zonFile->getEventByName(gateName);
 		if (!telegateZoneData) {
-			std::cout << "Gate [" << gateName << "] NOT found! Setting to default gate for map " << zoneSTB->getEntry(mapId)->getColumnData(0) << "\n";
+			logger.logError("Gate [", gateName, "] NOT found! Setting to default gate for map ", zoneSTB->getEntry(mapId)->getColumnData(0));
 			telegateZoneData = zonFile->getEventByName(EventZoneData::DEFAULT_EVENT);
 		}
 		telegate = new Telegate(telegateZoneData, mapId);
-		this->telegates.insert(std::make_pair(ifoTelegate->getWarpSTBId(), telegate));
+		this->telegates.insert(std::move(std::make_pair(ifoTelegate->getWarpSTBId(), telegate)));
 	}
 }
 
 void WorldServer::onNewROSEClient(std::shared_ptr<ROSEClient>& roseClient) {
 	Player *newPlayer = new Player(roseClient);
-	worldClientList.insert(std::make_pair(roseClient, newPlayer));
+	worldClientList.insert(std::move(std::make_pair(roseClient, newPlayer)));
 }
 
 void WorldServer::onROSEClientDisconnecting(std::shared_ptr<ROSEClient>& roseClient) {
 	auto client = findWorldClientByInterface(roseClient);
 	if (!client) {
-		std::cout << "Player konnte nicht gefunden werden!";
+		logger.logWarn("Player konnte nicht gefunden werden!");
 		return;
 	}
+	saveCharacter(client);
 	client->onDisconnect();
 	worldClientList.erase(roseClient);
+}
+
+bool WorldServer::saveCharacter(Player* player) {
+	bool success = saveCharacterDataForCharacter(player);
+	success &= saveSkilledAttributesForCharacter(player);
+	success &= saveInventoryForCharacter(player);
+	return success;
 }
 
 uint32_t WorldServer::getLastLoggedCharacterFromAccount(const uint32_t accountId) {
@@ -218,8 +331,11 @@ uint32_t WorldServer::getLastLoggedCharacterFromAccount(const uint32_t accountId
 	sprintf_s(buf, "SELECT last_character_online FROM accounts WHERE id=%i", accountId);
 	auto resultSet = database->selectQuery(buf);
 	uint32_t resultId = -1;
-	if (resultSet) {
-		resultId = atoi(resultSet->getRow(0)->getColumnData(0).c_str());
+	if (resultSet->hasResult()) {
+		resultId = resultSet->getRow(0)->getColumnDataAsInt(0);
+	}
+	else {
+		logger.logError("[DB-ERROR]: ", resultSet->getError());
 	}
 	return resultId;
 }
@@ -228,35 +344,133 @@ bool WorldServer::loadCharacterDataForCharacter(Player* player) {
 	char buf[0x200] = { 0x00 };
 	sprintf_s(buf, "SELECT player_name, level, class_id, sex, face, hair FROM players WHERE id=%i", player->getTraits()->getCharacterId());
 	auto result = database->selectQuery(buf);
-	if (result) {
+	if (result->hasResult()) {
 		ResultRow *row = result->getRow(0);
 		auto playerTraits = player->getTraits();
 		auto playerStats = player->getStats();
 		playerTraits->setName(row->getColumnData(0));
 		playerStats->setLevel(row->getColumnDataAsInt(1));
-		playerStats->setJobId(row->getColumnDataAsInt(2));
+		playerTraits->setJob(Job::getJobFromId(row->getColumnDataAsInt(2)));
 		playerTraits->setSex(row->getColumnDataAsInt(3));
 		playerTraits->setFaceStyle(row->getColumnDataAsInt(4));
 		playerTraits->setHairStyle(row->getColumnDataAsInt(5));
 
 		player->getLocationData()->setMap(maps[22]);
+
 	}
-	return result.operator bool();
+	else {
+		logger.logError("[DB-ERROR]: ", result->getError());
+	}
+	return result->hasResult();
+}
+
+bool WorldServer::loadSkilledAttributesForCharacter(Player* player) {
+	char buf[0x200] = { 0x00 };
+	sprintf_s(buf, "SELECT strength, dexterity, intelligence, concentration, charm, sensibility FROM player_attributes WHERE player_id=%i", player->getTraits()->getCharacterId());
+	auto result = database->selectQuery(buf);
+	if (result->hasResult()) {
+		ResultRow *row = result->getRow(0);
+		PlayerAttributeTypes* attributes = player->getAttributes();
+		attributes->getStrength()->setPointsLearned(static_cast<uint16_t>(row->getColumnDataAsInt(0)));
+		attributes->getDexterity()->setPointsLearned(static_cast<uint16_t>(row->getColumnDataAsInt(1)));
+		attributes->getIntelligence()->setPointsLearned(static_cast<uint16_t>(row->getColumnDataAsInt(2)));
+		attributes->getConcentration()->setPointsLearned(static_cast<uint16_t>(row->getColumnDataAsInt(3)));
+		attributes->getCharm()->setPointsLearned(static_cast<uint16_t>(row->getColumnDataAsInt(4)));
+		attributes->getSensibility()->setPointsLearned(static_cast<uint16_t>(row->getColumnDataAsInt(5)));
+	}
+	else {
+		logger.logError("[DB-ERROR]: ", result->getError());
+	}
+	return result->hasResult();
 }
 
 bool WorldServer::loadInventoryForCharacter(Player* player) {
 	char buf[0x200] = { 0x00 };
-	sprintf_s(buf, "SELECT * FROM items WHERE player_id=%i", player->getTraits()->getCharacterId());
+	sprintf_s(buf, "SELECT item_type, item_id, amount, slot FROM items WHERE player_id=%i", player->getTraits()->getCharacterId());
 	auto result = database->selectQuery(buf);
-	if (result) {
+	if (result->hasResult()) {
 		auto inventory = player->getInventory();
 		for (uint32_t i = 0; i < result->getResultAmount(); i++) {
 			auto currentRow = result->getRow(i);
-			Item item(ItemTypeList::toItemType(currentRow->getColumnDataAsInt(2)), currentRow->getColumnDataAsInt(3), currentRow->getColumnDataAsInt(4));
-			inventory->setItem(currentRow->getColumnDataAsInt(5), item);
+			const ItemType& itemType = ItemTypeList::toItemType(currentRow->getColumnDataAsInt(0));
+			const uint32_t itemId = currentRow->getColumnDataAsInt(1);
+			const uint32_t itemAmount = currentRow->getColumnDataAsInt(2);
+			Item itemToAssign;
+			if (itemType != ItemTypeList::MONEY) {
+				itemToAssign = Item(itemType, itemId, itemAmount);
+			}
+			else {
+				itemToAssign = MoneyItem(itemAmount);
+			}
+			inventory->setItem(currentRow->getColumnDataAsInt(3), itemToAssign);
 		}
 	}
-	return result.operator bool();
+	else {
+		logger.logError("[DB-ERROR]: ", result->getError());
+	}
+	return true;
+}
+
+bool WorldServer::saveCharacterDataForCharacter(Player* player) {
+	char buf[0x200] = { 0x00 };
+	auto playerStats = player->getStats();
+	sprintf_s(buf, "UPDATE players SET level=%i, class_id=%i, sex=%i, face=%i, hair=%i, save_spot_id=%i WHERE id=%i", playerStats->getLevel(), player->getTraits()->getJob().getId(),
+		player->getTraits()->getSex(), player->getTraits()->getFaceStyle(), player->getTraits()->getHairStyle(), player->getTraits()->getSavedSpotId(), player->getTraits()->getCharacterId());
+	logger.logDebug("Saving player's basic data...");;
+	auto result = database->updateQuery(buf);
+	if (!result) {
+		logger.logWarn("Saving player '", player->getTraits()->getName(), "'[", player->getTraits()->getCharacterId(), "] could not be saved.\nDB-Error: ", database->getLastError());
+	}
+	return result;
+}
+
+bool WorldServer::saveSkilledAttributesForCharacter(Player* player) {
+	auto playerAttributes = player->getAttributes();
+	char buf[0x200] = { 0x00 };
+	sprintf_s(buf, "UPDATE player_attributes SET strength=%i, dexterity=%i, intelligence=%i, concentration=%i, charm=%i, sensibility=%i WHERE player_id=%i",
+		playerAttributes->getStrength()->getPointsLearned(), playerAttributes->getDexterity()->getPointsLearned(),
+		playerAttributes->getIntelligence()->getPointsLearned(), playerAttributes->getConcentration()->getPointsLearned(),
+		playerAttributes->getCharm()->getPointsLearned(), playerAttributes->getSensibility()->getPointsLearned(),
+		player->getTraits()->getCharacterId());
+	logger.logDebug("Saving player's attribute data...");
+	auto result = database->updateQuery(buf);
+	if (!result) {
+		logger.logWarn("Saving player '", player->getTraits()->getName(), "'[", player->getTraits()->getCharacterId(), "] could not be saved.\nDB-Error: ", database->getLastError());
+	}
+	return true;
+}
+
+bool WorldServer::saveInventoryForCharacter(Player* player) {
+	char buf[0x200] = { 0x00 };
+	sprintf_s(buf, "DELETE FROM items WHERE player_id=%i", player->getTraits()->getCharacterId());
+	bool success = database->deleteQuery(buf);
+	logger.logDebug("Pruning character inventory...");
+	if (success) {
+		logger.logDebug("Saving player's inventory...");
+		for (uint8_t i = 0; i < Inventory::MAX_SLOTS;i++) {
+			success &= saveItemForPlayerInventory(player, i);
+		}
+	}
+	else {
+		logger.logError("[DB-ERROR]: ", database->getLastError());
+	}
+	return success;
+}
+
+bool WorldServer::saveItemForPlayerInventory(Player* player, const uint8_t slotId) {
+	char buf[0x200] = { 0x00 };
+	bool currentInsertSuccess = false;
+	const Item& item = player->getInventory()->getItem(slotId);
+	if (item.isValid()) {
+		sprintf_s(buf, "INSERT INTO items (player_id, item_type, item_id, amount, slot, durability, stat_id, refinement, appraised, socketed, lifespan) VALUES(%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i)",
+			player->getTraits()->getCharacterId(), item.getType().getTypeId(), item.getId(), item.getAmount(), slotId, item.getDurability(),
+			item.getStatId(), item.getRefineLevel(), item.isAppraised(), item.isSocketed(), item.getLifespan());
+		bool currentInsertSuccess = database->insertQuery(buf);
+		if (!currentInsertSuccess) {
+			logger.logWarn("[DB-ERROR]: Couldn't save item ", item, " in slot ", slotId, " for player '", player->getTraits()->getName(), "'.");
+		}
+	}
+	return currentInsertSuccess;
 }
 
 bool WorldServer::teleportPlayerFromTelegate(Player* player, const uint16_t telegateId) {
@@ -268,7 +482,7 @@ bool WorldServer::teleportPlayerFromTelegate(Player* player, const uint16_t tele
 		mapId = telegate->getMapId();
 	}
 	else {
-		std::cout << "Couldn't find telegate with id: " << telegateId << ". Player position: [" << player->getLocationData() << "]\n";
+		logger.logWarn("Couldn't find telegate with id: ", telegateId, ". Player position: [", player->getLocationData(), "].");
 	}
 	return teleportPlayer(player, maps[mapId], pos);
 }
@@ -284,10 +498,78 @@ bool WorldServer::teleportPlayer(Player* player, Map* map, const Position& pos) 
 	locationData->getMap()->addEntityToRemovalQueue(player, RemovalReason::TELEPORT);
 	locationData->setMap(map);
 	locationData->setCurrentMapSector(nullptr);
-	locationData->getPositionCollection()->setCurrentPosition(pos);
-	locationData->getPositionCollection()->setDestinationPosition(pos);
+	locationData->getMapPosition()->setCurrentPosition(pos);
+	locationData->getMapPosition()->setDestinationPosition(pos);
 
-	std::cout << "Spawning player to: " << locationData << "\n";
+	logger.logDebug("Spawning player to: ", locationData);
 
-	return player->sendDataToSelf(response);
+	return player->getPacketHandler()->sendDataToClient(response);
+}
+
+ZMO* WorldServer::getAttackAnimationForPlayer(Player* player) const {
+	ZMO* animation = nullptr;
+	switch (player->getCombat()->getCombatType()) {
+		case CombatTypeId::NONE:
+		case CombatTypeId::BASIC_ATTACK:
+		{
+			const Item& weapon = player->getInventory()->getItem(ItemTypeList::WEAPON.getInventorySlotId());
+			animation = getAttackAnimationByWeaponId(weapon.getId());
+		}
+		break;
+		case CombatTypeId::SKILL_ATTACK:
+
+		break;
+	}
+	return animation;
+}
+
+ZMO* WorldServer::getAttackAnimationByWeaponId(const uint32_t weaponId) const {
+	uint32_t motionTypeColumn = getEquipmentSTB(ItemTypeList::WEAPON.getTypeId())->getMotionIdOfEntry(weaponId);
+	uint32_t animationId = motionTypesSTB->getEntry(ItemTypeList::WEAPON.getTypeId())->getColumnDataAsInt(motionTypeColumn);
+	logger.logDebug("Found animation of id #", animationId, " for weapon id #", weaponId);
+
+	auto iterator = attackAnimations.find(animationId);
+	if (iterator != attackAnimations.end()) {
+		return iterator->second;
+	}
+	logger.logWarn("No corrosponding animation for weapon id #", weaponId, " found!");
+	return nullptr;
+}
+ZMO* WorldServer::getAttackAnimationBySkillId(const uint32_t id) const {
+	return nullptr;
+}
+
+ZMO* WorldServer::getAttackAnimationForNpc(NPC* npc) const {
+	ZMO* animation = nullptr;
+	switch (npc->getCombat()->getCombatType()) {
+		case CombatTypeId::NONE:
+		case CombatTypeId::BASIC_ATTACK:
+			animation = npcAnimationFile->getAttackAnimationForNpcId(npc->getDefaultStatValues()->getId());
+		break;
+	}
+	return animation;
+}
+
+bool WorldServer::addDropFromNPC(NPC* monster, int16_t levelDifferenceToKiller) {
+	Drop* drop = nullptr;
+	uint16_t levelDiffbalanced = (std::min)((std::max)(static_cast<int16_t>(0), levelDifferenceToKiller), static_cast<int16_t>(10));
+	NumericRandomizer<uint16_t> randomizer(0, 100);
+	Position pos = PositionProcessor::generateRandomPointAroundPosition(monster->getLocationData()->getMapPosition()->getCurrentPosition(), 200.0f);
+	uint16_t drawnValue = randomizer.generateRandomValue();
+	logger.logDebug("Chance to drop money: ", monster->getDefaultStatValues()->getDefaultMoneyDropChance(), "%. Drawn random value: ", drawnValue);
+	if (drawnValue <= monster->getDefaultStatValues()->getDefaultMoneyDropChance()) {
+		randomizer.setNewBoundries(monster->getDefaultStatValues()->getLevel() + 20, (monster->getDefaultStatValues()->getLevel() + 30) * 2);
+		Item item = MoneyItem(randomizer.generateRandomValue());
+		drop = new Drop(item, pos);
+	}
+	else {
+		//TODO
+	}
+
+	bool success = drop != nullptr;
+	if (success) {
+		logger.logDebug("Dropping: ", drop->getName());
+		success &= monster->getLocationData()->getMap()->addEntityToInsertionQueue(drop);
+	}
+	return success;
 }

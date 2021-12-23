@@ -110,6 +110,26 @@ public:
 	virtual ~GenericZoneData();
 };
 
+class RestorePoint {
+private:
+	uint32_t restorePointId;
+	uint16_t mapId;
+	Position center;
+public:
+	RestorePoint(uint32_t id, uint16_t mapId, EventZoneData* rawRestorePointData);
+	virtual ~RestorePoint();
+
+	__inline uint32_t getId() const {
+		return restorePointId;
+	}
+	__inline uint16_t getMapId() const {
+		return mapId;
+	}
+	__inline Position getCenterPosition() const {
+		return center;
+	}
+};
+
 class ZONFile {
 private:
 	std::string filePath;
@@ -121,8 +141,11 @@ private:
 public:
 	ZONFile(const char* path);
 	virtual ~ZONFile();
+
 	EventZoneData* getEventByName(const char* name) const;
 	EventZoneData* getEventByName(const char* name, const char* defaultEvent) const;
+	std::vector<EventZoneData*> getAllEventWithName(const char* name) const;
+	std::vector<EventZoneData*> getAllRestorePoints() const;
 
 	__inline EventZoneData* getEventById(uint32_t id) const {
 		return eventData.at(id);

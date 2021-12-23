@@ -5,26 +5,36 @@
 
 #include "..\JBROSE_Common\ROSEClient.h"
 #include "BasicTypes\Entity.h"
+#include "BasicTypes/RegenerationProcessor.h"
 #include "BasicTypes\Item.h"
+#include "BasicTypes/Inventory.h"
+#include "BasicTypes/Job.h"
+#include "WorldPackets/Responses/PickupDropResponsePacket.h"
+
 
 class PlayerTraits {
 private:
-	std::string name;
+	char* name;
 	uint32_t characterId;
 	uint8_t sex;
 	uint16_t savedSpotId;
 	uint32_t faceStyle;
 	uint32_t hairStyle;
+	Job job;
 public:
-	PlayerTraits() {
-		setName("ADMIN");
+	PlayerTraits() : job(Job::VISITOR) {
+		name = new char[0x20];
+		memset(name, 0x00, 0x20);
 		characterId = 1;
 		sex = 0;
 		savedSpotId = 0;
 		faceStyle = 1;
 		hairStyle = 0;
 	}
-	virtual ~PlayerTraits() {}
+	virtual ~PlayerTraits() {
+		delete[] name;
+		name = nullptr;
+	}
 
 	__inline uint32_t getCharacterId() const {
 		return characterId;
@@ -32,11 +42,14 @@ public:
 	__inline void setCharacterId(const uint32_t id) {
 		characterId = id;
 	}
-	__inline std::string getName() const {
+	__inline const char* getName() const {
 		return name;
 	}
-	__inline void setName(const std::string& name) {
-		this->name = name;
+	__inline void setName(const std::string& nameToCopy) {
+		setName(nameToCopy.c_str());
+	}
+	__inline void setName(const char* name) {
+		strncpy_s(this->name, 0x20, name, 0x1F);
 	}
 
 	__inline uint8_t getSex() const {
@@ -66,66 +79,36 @@ public:
 	__inline void setHairStyle(const uint32_t hairStyle) {
 		this->hairStyle = hairStyle;
 	}
+	__inline const Job& getJob() const {
+		return job;
+	}
+	__inline void setJob(const Job job) {
+		this->job = job;
+	}
 };
 
-class PlayerStats {
+class PlayerStats : public EntityStats {
 private:
-	uint16_t level;
-	uint16_t jobId;
-	uint16_t currentHp;
-	uint16_t maxHp;
-	uint16_t currentMp;
-	uint16_t maxMp;
 	uint32_t experiencePoints;
-	uint16_t movementSpeed;
 	uint16_t stamina;
 	uint16_t availableStatPoints;
 	uint16_t availableSkillPoints;
+	uint16_t maximumWeight;
 public:
 	PlayerStats() {
-		level = 1;
-		jobId = availableStatPoints = availableSkillPoints = 0;
-		currentHp = currentMp = 100;
-		maxHp = maxMp = 100;
-		movementSpeed = 425;
+		availableStatPoints = availableSkillPoints = 0;
 		experiencePoints = 0;
 		stamina = 5000;
+		maximumWeight = 1100;
 	}
-	__inline uint16_t getLevel() const {
-		return level;
-	}
-	__inline void setLevel(const uint16_t level) {
-		this->level = level;
-	}
-	__inline uint16_t getJobId() const {
-		return jobId;
-	}
-	__inline void setJobId(const uint16_t jobId) {
-		this->jobId = jobId;
-	}
-	__inline uint16_t getCurrentHp() const {
-		return currentHp;
-	}
-	__inline void setCurrentHp(const uint16_t currentHp) {
-		this->currentHp = currentHp;
-	}
-	__inline uint16_t getCurrentMp() const {
-		return currentMp;
-	}
-	__inline void setCurrentMp(const uint16_t currentMp) {
-		this->currentMp = currentMp;
+	__inline void addExperience(const uint32_t expGained) {
+		setExperiencePoints(getExperiencePoints() + expGained);
 	}
 	__inline uint32_t getExperiencePoints() const {
 		return experiencePoints;
 	}
-	__inline void setExperiencePoints(const uint16_t experiencePoints) {
+	__inline void setExperiencePoints(const uint32_t experiencePoints) {
 		this->experiencePoints = experiencePoints;
-	}
-	__inline uint16_t getMovementSpeed() const {
-		return movementSpeed;
-	}
-	__inline void setMovementSpeed(const uint16_t speed) {
-		movementSpeed = speed;
 	}
 	__inline uint16_t getStamina() const {
 		return stamina;
@@ -140,6 +123,9 @@ public:
 	__inline void setAvailableStatPoints(const uint16_t availableStatPoints) {
 		this->availableStatPoints = availableStatPoints;
 	}
+	__inline void addAvailableStatPoints(uint16_t additionalPoints) {
+		setAvailableStatPoints(getAvailableStatPoints() + additionalPoints);
+	}
 
 	__inline uint16_t getAvailableSkillPoints() const {
 		return availableSkillPoints;
@@ -147,56 +133,180 @@ public:
 	__inline void setAvailableSkillPoints(const uint16_t availableSkillPoints) {
 		this->availableSkillPoints = availableSkillPoints;
 	}
+	__inline void addAvailableSkillPoints(uint16_t additionalPoints) {
+		setAvailableSkillPoints(getAvailableSkillPoints() + additionalPoints);
+	}
+	__inline uint16_t getMaximumPossibleWeight() const {
+		return maximumWeight;
+	}
+	__inline void setMaximumPossibleWeight(uint16_t newMaximum) {
+		maximumWeight = newMaximum;
+	}
 };
 
-class Inventory {
+class PlayerAttributes {
 private:
-	uint64_t moneyAmount;
-	Item inventorySlots[140];
+	const char* attributeName;
+	uint16_t pointsLearned;
+	uint16_t pointsBuffed;
 public:
-	Inventory() {}
-	virtual ~Inventory() {}
-
-	__inline const Item& getItem(const uint8_t slot) const {
-		return inventorySlots[slot];
+	PlayerAttributes(const char* name, uint16_t pointsDistributed) {
+		attributeName = name;
+		pointsLearned = pointsDistributed;
+		pointsBuffed = 0;
+	}
+	virtual ~PlayerAttributes() {
 	}
 
-	__inline void setItem(const uint8_t slot, const Item& item) {
-		inventorySlots[slot] = item;
+	PlayerAttributes& operator=(const uint16_t value) {
+		pointsLearned = value;
+		return (*this);
+	}
+	__inline const char* getAttributeName() const {
+		return attributeName;
+	}
+	operator uint16_t() const {
+		return getPointsTotal();
 	}
 
-	__inline void clearItem(const uint8_t slot) {
-		inventorySlots[slot] = Item();
+	__inline uint16_t getPointsLearned() const {
+		return pointsLearned;
+	}
+	__inline void increasePointsLearned() {
+		pointsLearned++;
+	}
+	__inline void setPointsLearned(const uint16_t points) {
+		pointsLearned = points;
+	}
+	__inline uint16_t getPointsBuffed() const {
+		return pointsBuffed;
+	}
+	__inline void setPointsBuffed(const uint16_t points) {
+		pointsBuffed = points;
+	}
+	__inline uint16_t getPointsTotal() const {
+		return getPointsBuffed() + getPointsLearned();
+	}
+};
+
+class PlayerAttributeTypes {
+private:
+	PlayerAttributes* strength;
+	PlayerAttributes* dexterity;
+	PlayerAttributes* intelligence;
+	PlayerAttributes* concentration;
+	PlayerAttributes* charm;
+	PlayerAttributes* sensibility;
+	using PlayerAttributesCallback = PlayerAttributes* (PlayerAttributeTypes::*)() const;
+
+	static PlayerAttributesCallback functions[];
+public:
+	const static uint8_t STRENGTH = 0;
+	const static uint8_t DEXTERITY = 1;
+	const static uint8_t INTELLIGENCE = 2;
+	const static uint8_t CONCENTRATION = 3;
+	const static uint8_t CHARM = 4;
+	const static uint8_t SENSIBLITY = 5;
+	PlayerAttributeTypes();
+	virtual ~PlayerAttributeTypes();
+
+	__inline PlayerAttributes* getStrength() const {
+		return strength;
+	}
+	__inline PlayerAttributes* getDexterity() const {
+		return dexterity;
+	}
+	__inline PlayerAttributes* getIntelligence() const {
+		return intelligence;
+	}
+	__inline PlayerAttributes* getConcentration() const {
+		return concentration;
+	}
+	__inline PlayerAttributes* getCharm() const {
+		return charm;
+	}
+	__inline PlayerAttributes* getSensibility() const {
+		return sensibility;
+	}
+	PlayerAttributes* getAttributeByType(uint8_t type) {
+		auto func = functions[type];
+		return (this->*func)();
+	}
+};
+
+class Player;
+
+class PlayerPacketHandler {
+private:
+	std::shared_ptr<ROSEClient> networkConnection;
+	ROSELogger logger;
+
+	__inline std::shared_ptr<ROSEClient> getConnectionWrapper() const {
+		return networkConnection;
+	}
+protected:
+	bool handleAssignmentOfLocalId(Player* player, const Packet* packet);
+	bool handleCollision(Player* player, const Packet* packet);
+	bool handleChangedEquipment(Player* player, const Packet* packet);
+	bool handleChangedRespawnTown(Player* player, const Packet* packet);
+	bool handleWeightChange(Player* player, const Packet* packet);
+	bool handleDistributionOfStatPoint(Player* player, const Packet *packet);
+	bool handleDropFromInventory(Player* player, const Packet* packet);
+	bool handleExit(Player* player, const Packet* packet);
+	bool handleIdentification(Player* player, const Packet* packet);
+	bool handleInitBasicAttack(Player* player, const Packet* packet);
+	bool handleNewDestination(Player* player, const Packet* packet);
+	bool handlePickupDrop(Player* player, const Packet* packet);
+	bool handleStanceChange(Player* player, const Packet* packet);
+	bool handleShowMonsterHp(Player* player, const Packet* packet);
+	bool handleTelegateEntered(Player* player, const Packet* packet);
+
+	bool sendEncryption();
+public:
+	PlayerPacketHandler(std::shared_ptr<ROSEClient>& networkConnection) {
+		this->networkConnection = networkConnection;
+	}
+	virtual ~PlayerPacketHandler() {
+	
+	}
+
+	bool handlePacket(Player* player, const Packet* packet);
+
+	__inline bool sendDataToClient(const ResponsePacket& packet) const {
+		return getConnectionWrapper()->sendData(packet);
 	}
 };
 
 class Player : public Entity{
 private:
 	uint32_t accountId;
-	std::shared_ptr<ROSEClient> networkConnection;
 	Inventory* inventory;
-	PlayerStats* stats;
+	RegenerationProcessor *regenerationProcessor;
 	PlayerTraits* traits;
+	PlayerAttributeTypes* attributes;
 	PacketFactory* packetFactory;
+	PlayerPacketHandler* packetHandler;
+	
+	class ZMO* attackAnimation;
 
-	bool sendEncryption();
-	bool loadEntirePlayer();
+	uint32_t getExperienceForLevelup() const;
+	bool handleLevelup();
+	bool sendLevelupToVisibleEntities();
+
+	void updateAttackPower();
+	void updateDefense();
+	void updateMagicDefense();
+	void updateCriticalRate();
+	void updateAttackSpeed();
+	void updateAttackRange();
+	void updateMaximumHp();
+	void updateMaximumMp();
+	void updateMaximumWeight();
 protected:
-
-	bool handleAssignmentOfLocalId(const Packet* packet);
-	bool handleCollision(const Packet* packet);
-	bool handleChangedRespawnTown(const Packet* packet);
-	bool handleIdentification(const Packet* packet);
-	bool handleNewDestination(const Packet* packet);
-	bool handleTelegateEntered(const Packet* packet);
-
 	__inline void setAccountId(const uint32_t accId) {
 		accountId = accId;
 	}
 
-	__inline std::shared_ptr<ROSEClient> getConnectionWrapper() const {
-		return networkConnection;
-	}
 public:
 	Player(std::shared_ptr<ROSEClient>& networkInterface);
 	virtual ~Player();
@@ -205,12 +315,17 @@ public:
 	virtual bool spawnVisually(Entity* entity);
 	virtual bool despawnVisually(Entity* entity);
 	virtual bool despawnVisually(uint16_t entityId);
+	void addExperience(uint32_t expGained);
 
-	__inline bool sendDataToSelf(const ResponsePacket& packet) const {
-		return getConnectionWrapper()->sendData(packet);
+	virtual const char* getName() const;
+	bool loadPlayerDataFromAccount(uint32_t accountId);
+	void updateMovementSpeed();
+	void updateAttackAnimation();
+
+	virtual void updateCombatValues() {
+		Entity::updateCombatValues();
+		updateMaximumWeight();
 	}
-	bool sendDataToVisible(const ResponsePacket& packet) const;
-	bool sendDataToVisibleExceptSelf(const ResponsePacket& packet) const;
 
 	__inline Inventory* getInventory() const {
 		return inventory;
@@ -219,10 +334,22 @@ public:
 		return traits;
 	}
 	__inline PlayerStats* getStats() const {
-		return stats;
+		return dynamic_cast<PlayerStats*>(Entity::getStats());
+	}
+	__inline PlayerAttributeTypes* getAttributes() const {
+		return attributes;
+	}
+	__inline PlayerPacketHandler* getPacketHandler() const {
+		return packetHandler;
 	}
 
+	virtual bool sendDataToSelf(const ResponsePacket& packet) {
+		return this->getPacketHandler()->sendDataToClient(packet);
+	}
+	void onDamageReceived(Entity* attacker, uint32_t damageAmount);
 	void onDisconnect();
+	virtual void onUpdate();
+	PickupDropResponsePacket onDropPickup(class Drop *drop);
 
 	__inline virtual bool isPlayer() const {
 		return true;

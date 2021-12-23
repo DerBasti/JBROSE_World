@@ -5,6 +5,10 @@ Position::Position() : Position(0.0f, 0.0f) {
 
 }
 
+Position::Position(const Position& other) : Position(other.getX(), other.getY()) {
+
+}
+
 Position::Position(float _x, float _y) {
 	x = _x;
 	y = _y;
@@ -16,72 +20,38 @@ Position::~Position() {
 
 
 std::ostream& operator<<(std::ostream& out, const Position& pos) {
-	std::cout << "[X: " << pos.getX() << ", Y: " << pos.getY() << "]";
+	out << "[X: " << pos.getX() << ", Y: " << pos.getY() << "]";
+	return out;
+}
+
+std::wostream& operator<<(std::wostream& out, const Position& pos) {
+	out << "[X: " << pos.getX() << ", Y: " << pos.getY() << "]";
 	return out;
 }
 
 
-PositionCollection::PositionCollection() : PositionCollection(Position()) {
+MapPosition::MapPosition() : MapPosition(Position()) {
 
 }
 
-PositionCollection::PositionCollection(const Position& current) : PositionCollection(current, current) {
+MapPosition::MapPosition(const Position& current) : MapPosition(current, current) {
 
 }
 
-PositionCollection::PositionCollection(const Position& current, const Position& destination) {
+MapPosition::MapPosition(const Position& current, const Position& destination) {
 	this->current = current;
 	this->destination = destination;
+	this->source = current;
 	direction = 0.0f;
 }
 
-PositionCollection::PositionCollection(const PositionCollection& collection) {
+MapPosition::MapPosition(const MapPosition& collection) {
 	current = collection.getCurrentPosition();
 	destination = collection.getDestinationPosition();
+	source = collection.getSourcePosition();
 	direction = collection.getDirection();
 }
 
-PositionCollection::~PositionCollection() {
+MapPosition::~MapPosition() {
 
-}
-
-
-PositionProcessor::PositionProcessor(PositionCollection* pos) : position(pos) {
-
-}
-
-PositionProcessor::~PositionProcessor() {
-	position = nullptr;
-}
-
-bool PositionProcessor::processNewPosition() {
-	float timePassed = static_cast<float>(timer.updateTimestamp());
-	if (position->getCurrentPosition() == position->getDestinationPosition()) {
-		return false;
-	}
-	const float movementSpeed = 425.0f;
-	float distanceMoved = (timePassed / 1000.0f) * movementSpeed; //MovementSpeed
-	float totalDistance = getDistanceToDestination();
-	Position newCurrent;
-	if (distanceMoved > totalDistance) {
-		newCurrent = position->getDestinationPosition();
-		std::cout << "Destination reached at: " << newCurrent.getX() << ", " << newCurrent.getY() << "\n";
-	}
-	else {
-		float ratios[2] = { getDistanceX() / totalDistance, getDistanceY() / totalDistance };
-
-		newCurrent = Position(position->getCurrentPosition().getX() + (ratios[0] * distanceMoved),
-			position->getCurrentPosition().getY() + (ratios[1] * distanceMoved));
-	}
-
-	position->setCurrentPosition(newCurrent);
-
-	return true;
-}
-
-float PositionProcessor::getDistanceBetweenPoints(const Position& first, const Position& second) {
-	float xDist = first.getX() - second.getX();
-	float yDist = first.getY() - second.getY();
-
-	return sqrtf((xDist*xDist) + (yDist*yDist));
 }

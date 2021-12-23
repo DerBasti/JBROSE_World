@@ -19,6 +19,7 @@ public:
 	const static uint16_t ID = 0x7A8;
 	TelegateResponsePacket();
 	virtual ~TelegateResponsePacket();
+	virtual std::string toPrintable() const;
 
 	__inline void setLocalEntityId(const uint16_t localId) {
 		localEntityId = localId;

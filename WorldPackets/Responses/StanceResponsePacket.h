@@ -16,6 +16,7 @@ public:
 	const static uint16_t DEFAULT_LENGTH = 11;
 	StanceResponsePacket();
 	virtual ~StanceResponsePacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint16_t getLocalId() const {
 		return localId;

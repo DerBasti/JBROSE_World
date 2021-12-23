@@ -45,6 +45,9 @@ public:
 	__inline const Position& getPosition() const {
 		return position;
 	}
+	virtual std::string toPrintable() const {
+		return std::string("IFOEntry");
+	}
 };
 
 class IFOMonsterSpawnEntry : public IFOEntry {
@@ -76,7 +79,7 @@ private:
 	std::shared_ptr<char> spawnName;
 	std::vector<std::shared_ptr<Round>> basicRounds;
 	std::vector<std::shared_ptr<Round>> tacticalRounds;
-	uint32_t respawnInterval;
+	uint64_t respawnInterval;
 	uint32_t maximumAmountOfMonsters;
 	float maximumRadiusForSpawn;
 	uint32_t tacticalPointsNecessary;
@@ -94,7 +97,7 @@ public:
 		return tacticalRounds;
 	}
 
-	__inline uint32_t getRespawnInterval() const {
+	__inline uint64_t getRespawnInterval() const {
 		return respawnInterval;
 	}
 	__inline uint32_t getMaximumAmountOfMonsters() const {
@@ -103,6 +106,10 @@ public:
 	__inline float getMaximumRadius() const {
 		return maximumRadiusForSpawn;
 	}
+	__inline uint32_t getTacticalPointsNecessary() const {
+		return tacticalPointsNecessary;
+	}
+	virtual std::string toPrintable() const;
 
 };
 

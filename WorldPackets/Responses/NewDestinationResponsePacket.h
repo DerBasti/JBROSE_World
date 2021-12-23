@@ -8,19 +8,22 @@
 
 class NewDestinationResponsePacket : public ResponsePacket {
 private:
-	const static uint16_t DEFAULT_LENGTH = 16;
+	const static uint16_t DEFAULT_LENGTH = 17;
 	uint16_t entityId;
 	uint16_t localTargetId;
 	uint16_t unknown;
 	Position position;
 	uint16_t z;
+	uint8_t stance;
 protected:
 	NewDestinationResponsePacket(const uint16_t overrideId);
-	void appendContentToSendable(SendablePacket& packet) const;
+	virtual void appendContentToSendable(SendablePacket& packet) const;
 public:
-	const static uint16_t ID = 0x79A;
-	NewDestinationResponsePacket();
+	const static uint16_t PLAYER_ID = 0x79A;
+	const static uint16_t NPC_ID = 0x797;
+	NewDestinationResponsePacket(class Entity* entityToMove);
 	virtual ~NewDestinationResponsePacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint16_t getEntityId() const {
 		return entityId;
@@ -39,6 +42,12 @@ public:
 	}
 	__inline void setDestinationPosition(const Position& pos) {
 		position = pos;
+	}
+	__inline void setStance(const uint8_t stanceId) {
+		stance = stanceId;
+	}
+	__inline uint8_t getStanceId() const {
+		return stance;
 	}
 };
 

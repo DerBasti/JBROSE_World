@@ -15,6 +15,7 @@ public:
 	const static uint16_t ID = 0x79A;
 	NewDestinationRequestPacket(const Packet* packet);
 	virtual ~NewDestinationRequestPacket();
+	virtual std::string toPrintable() const;
 
 	__inline uint16_t getTargetLocalId() const {
 		return targetLocalId;
