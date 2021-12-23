@@ -1,3 +1,3 @@
 Nötige Downloads: 
 * PGSQL 12~14
-* Win64OpenSSL-1_1_1g.exe
+* openssl-1.0.2u-x64-86-win64
