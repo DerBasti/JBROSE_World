@@ -157,7 +157,7 @@ class AIP {
 private:
 	uint32_t checkingIntervalInMilliseconds;
 	uint32_t damageAmountTillTrigger;
-	ROSELogger logger;
+	ROSEThreadedLogger logger;
 
 	const static uint32_t DEFAULT_STATE_AMOUNT = 0x06;
 	AIState** states;

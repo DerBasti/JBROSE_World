@@ -15,12 +15,13 @@ enum class MonsterSpawnTacticalType : uint32_t {
 
 class MonsterRecoveryPoint {
 private:
-	ROSELogger logger;
+	ROSEThreadedLogger logger;
 	std::function<void(class Monster*)> monsterSpawnedFunction;
 	std::unordered_map<uint16_t, class Monster*> monstersSpawned;
 	std::shared_ptr<IFOMonsterSpawnEntry> spawnInformation;
 	Timer spawnCheckTimer;
 	uint32_t tacticalPointsGained;
+	uint32_t averageTacticalPointsGiven;
 	WrappingUInt currentBasicRoundId;
 	MonsterSpawnTacticalType calculateTacticalVariation();
 	NumericRandomizer<float> randomizer;

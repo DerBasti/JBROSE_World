@@ -28,7 +28,8 @@ std::string UpdateInventorySlotsResponsePacket::toPrintable() const {
 	sprintf_s(buf, "[UpdateInventorySlotsResponsePacket]\n\t* Amount of items to update: %i", itemUpdates.size());
 	for (size_t i = 0; i < itemUpdates.size(); i++) {
 		const Item& item = itemUpdates.at(i);
-		sprintf_s(&buf[strlen(buf)], 0x250, "\n\t* Slot: %i | Item: %i, %i", slotIdUpdates.at(i), item.getType().getTypeId(), item.getId());
+		size_t alreadyAssignedBytes = strlen(buf);
+		sprintf_s(&buf[alreadyAssignedBytes], 0x250 - alreadyAssignedBytes, "\n\t* Slot: %i | Item: %i, %i", slotIdUpdates.at(i), item.getType().getTypeId(), item.getId());
 	}
 	return std::string(buf);
 }

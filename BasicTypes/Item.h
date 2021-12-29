@@ -199,9 +199,6 @@ public:
 	}
 };
 
-std::ostream& operator<<(std::ostream& out, const Item& item);
-std::wostream& operator<<(std::wostream& out, const Item& item);
-
 class WeaponType {
 private:
 	WeaponType() {}
@@ -233,5 +230,8 @@ public:
 	const static uint16_t toPacketHeader(const Item& item);
 	const static uint32_t toPacketBody(const Item& item);
 };
+
+std::ostream& operator<<(std::ostream& out, const Item& item);
+std::wostream& operator<<(std::wostream& out, const Item& item);
 
 #endif //__ROSE_ITEM__

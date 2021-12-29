@@ -94,6 +94,7 @@ void IFOEntry::readSpecialized(FileReader& reader) {
 }
 
 IFOMonsterSpawnEntry::IFOMonsterSpawnEntry(FileReader& reader) : IFOEntry(reader) {
+	averageMonstersSpawnedPerBasicRound = 0;
 	readSpecialized(reader);
 }
 
@@ -116,13 +117,18 @@ void IFOMonsterSpawnEntry::readSpecialized(FileReader& reader) {
 	
 void IFOMonsterSpawnEntry::readRounds(FileReader& reader, std::vector<std::shared_ptr<Round>>& roundVector, bool isTactical) {
 	uint32_t amountOfSpawns = reader.readUInt();
+	uint32_t totalAmountOfMonsters = 0;
 	for (uint32_t j = 0; j < amountOfSpawns; j++) {
 		uint8_t spawnNameLen = reader.readByte();
 		auto spawnName = reader.readStringWrapped(spawnNameLen);
 		uint32_t monsterId = reader.readUInt();
 		uint32_t amount = reader.readUInt() + 1;
+		totalAmountOfMonsters += amount;
 		std::shared_ptr<Round> round = std::shared_ptr<Round>(new Round(monsterId, amount, isTactical));
 		roundVector.emplace_back(std::move(round));
+	}
+	if (!isTactical && amountOfSpawns > 0) {
+		averageMonstersSpawnedPerBasicRound = (uint8_t)std::ceil((totalAmountOfMonsters+1) / static_cast<float>(amountOfSpawns + 1));
 	}
 }
 

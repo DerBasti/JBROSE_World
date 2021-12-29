@@ -36,3 +36,8 @@ std::ostream& operator<<(std::ostream& out, const AIEvent& event) {
 	out << (int)event;
 	return out;
 }
+
+std::wostream& operator<<(std::wostream& out, const AIEvent& event) {
+	out << (int)event;
+	return out;
+}

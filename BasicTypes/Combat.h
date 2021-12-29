@@ -9,8 +9,8 @@
 
 enum class EntityDefaultTeamId : uint16_t {
 	NPC = 0x01,
-	MONSTER = 0x02,
-	PLAYER = 0x64,
+	PLAYER = 0x02,
+	MONSTER = 0x64,
 	DROP = PLAYER
 };
 
@@ -208,7 +208,7 @@ private:
 	CombatType combatType;
 	StoppableCombatTimer attackTimer;
 	uint32_t teamId;
-	ROSELogger logger;
+	ROSEThreadedLogger logger;
 	NumericRandomizer<uint32_t> randomizer;
 
 	void setAttackRoutine(std::function<bool()> proc);

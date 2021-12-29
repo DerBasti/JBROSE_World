@@ -22,7 +22,7 @@ private:
 protected:
 	std::unordered_map<uint16_t, uint32_t> damageMap;
 	class VisualityProcessor* visualityProcessor;
-	ROSELogger logger;
+	ROSEThreadedLogger logger;
 	Stance* stance;
 	EntityStats* stats;
 

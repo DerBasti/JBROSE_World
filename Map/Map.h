@@ -69,7 +69,7 @@ private:
 		SECTORS_PER_AXIS - 1, SECTORS_PER_AXIS, SECTORS_PER_AXIS + 1
 	};
 
-	ROSELogger logger;
+	ROSEThreadedLogger logger;
 	uint16_t id;
 	std::mutex entityInsertionMutex;
 	std::mutex entityRemovalMutex;
@@ -107,6 +107,7 @@ public:
 	void updateEntities();
 	void checkForMonsterRespawns();
 	Entity* findEntityByLocalId(const uint16_t id) const;
+	Position getDefaultRespawnPoint();
 	void updateMapTime();
 
 	bool isSectorOutdatedForEntity(Entity* entity) const;
@@ -116,7 +117,7 @@ public:
 	__inline uint16_t getId() const {
 		return id;
 	}
-	__inline std::string getName() const {
+	__inline const char* getName() const {
 		return mapName;
 	}
 	__inline bool isActive() const {

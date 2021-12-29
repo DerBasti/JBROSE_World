@@ -42,3 +42,12 @@ std::ostream& operator<<(std::ostream& out, const LocationData* locationData) {
 std::ostream& operator<<(std::ostream& out, const std::shared_ptr<LocationData>& locationData) {
 	return operator<<(out, locationData.get());
 }
+
+std::wostream& operator<<(std::wostream& out, const LocationData* locationData) {
+	out << "[MapId: " << locationData->getMap()->getId() << ", Position: " << locationData->getMapPosition()->getCurrentPosition() << "]";
+	return out;
+}
+
+std::wostream& operator<<(std::wostream& out, const std::shared_ptr<LocationData>& locationData) {
+	return operator<<(out, locationData.get());
+}

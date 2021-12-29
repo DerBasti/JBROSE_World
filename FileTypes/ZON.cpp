@@ -174,8 +174,11 @@ RestorePoint::RestorePoint(uint32_t id, uint16_t mapId, EventZoneData* rawRestor
 	this->restorePointId = id;
 	this->mapId = mapId;
 	this->center = rawRestorePointData->getCenterPosition();
+	this->restorePointName = rawRestorePointData->getEventName();
 }
 
 RestorePoint::~RestorePoint() {
 
 }
+
+const char* RestorePoint::DEFAULT_RESTORE_POINT_NAME = "restore";

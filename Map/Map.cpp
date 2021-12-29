@@ -84,6 +84,16 @@ void Map::updateMapTime() {
 	mapTime.getCurrentDayTimeType();
 }
 
+
+Position Map::getDefaultRespawnPoint() {
+	for (auto restorePoint : this->restorePoints) {
+		if (_stricmp(restorePoint->getName(), RestorePoint::DEFAULT_RESTORE_POINT_NAME) == 0) {
+			return restorePoint->getCenterPosition();
+		}
+	}
+	logger.logWarn("No default respawn found for map: ", getName());
+	return Position(520000.0f, 520000.0f);
+}
 void Map::addRestorePoints(std::vector<RestorePoint*> restorePoints) {
 	logger.logTrace("Adding restore points...");
 	for (auto point : restorePoints) {
@@ -115,7 +125,6 @@ void Map::addQueuedEntities() {
 }
 
 bool Map::removeQueuedEntity(std::unordered_map<uint16_t, Entity*>::iterator& allEntityIteratorPosition) {
-	std::lock_guard<std::mutex> lock(entityRemovalMutex);
 	bool removedFlag = entityRemovalQueue.find(allEntityIteratorPosition->first) != entityRemovalQueue.cend();
 	if (removedFlag) {
 		auto request = entityRemovalQueue.at(allEntityIteratorPosition->first);
@@ -132,6 +141,7 @@ bool Map::removeQueuedEntity(std::unordered_map<uint16_t, Entity*>::iterator& al
 		}
 		request->getMapSector()->removeEntity(entity);
 
+		std::lock_guard<std::mutex> lock(entityRemovalMutex);
 		allEntityIteratorPosition = allEntities.erase(allEntityIteratorPosition);
 		clearLocalId(entity);
 		entityRemovalQueue.erase(request->getLocalId());
@@ -153,7 +163,7 @@ bool Map::addEntityToInsertionQueue(Entity* entity) {
 	if (success) {
 		std::lock_guard<std::mutex> lock(entityInsertionMutex);
 		entityInsertionQueue.insert(entityInsertionQueue.end(), entity);
-		logger.logDebug("Added entity with id '", entity->getLocationData()->getLocalId(), "' to insertion queue.");
+		logger.logTrace("Added entity with id '", entity->getLocationData()->getLocalId(), "' to insertion queue.");
 	} else {
 		logger.logError("Entity could not be added to insertion queue.");
 	}
@@ -161,14 +171,16 @@ bool Map::addEntityToInsertionQueue(Entity* entity) {
 }
 
 void Map::addEntityToRemovalQueue(Entity* entity, RemovalReason reason) {
-	if (entity == nullptr || entity->getLocationData()->getCurrentMapSector() == nullptr || entity->getLocationData()->getLocalId() == 0x00) {
+	if (entity == nullptr || !entity->isIngame() || entity->getLocationData()->getCurrentMapSector() == nullptr || entity->getLocationData()->getLocalId() == 0x00) {
 		return;
 	}
+	entity->getCombat()->clearSelfFromTargetsCombat();
+	entity->getCombat()->clear();
 	entity->setIngame(false);
 	std::shared_ptr<RemovalRequest> removalRequest = RemovalRequestFactory::createRemovalRequest(entity, reason);
 	std::lock_guard<std::mutex> lock(entityRemovalMutex);
 	entityRemovalQueue.insert(std::move(std::make_pair(removalRequest->getLocalId(), removalRequest)));
-	logger.logDebug("Added entity with id ", entity->getLocationData()->getLocalId(), " to removal queue.");
+	logger.logTrace("Added entity with id ", entity->getLocationData()->getLocalId(), " to removal queue.");
 }
 
 void Map::removeAllQueuedEntities() {

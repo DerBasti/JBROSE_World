@@ -10,6 +10,8 @@ MonsterRecoveryPoint::MonsterRecoveryPoint(std::shared_ptr<IFOMonsterSpawnEntry>
 	tacticalPointsGained = 0;
 	currentBasicRoundId = 0;
 	currentBasicRoundId.setMaximum(static_cast<uint32_t>(spawnEntry->getBasicRounds().size()));
+	averageTacticalPointsGiven = (uint32_t)std::round(spawnInformation->getTacticalPointsNecessary() / static_cast<float>(spawnInformation->getAverageMonsterAmountPerSpawn() * spawnInformation->getBasicRounds().size()));
+	averageTacticalPointsGiven = (uint32_t)(averageTacticalPointsGiven * sqrtf(15.0f / (float)averageTacticalPointsGiven));
 	logger.setLoggerName("MonsterSpawnPoint");
 	randomizer.setNewBoundries(-spawnInformation->getMaximumRadius(), spawnInformation->getMaximumRadius());
 }
@@ -19,9 +21,6 @@ MonsterRecoveryPoint::~MonsterRecoveryPoint() {
 }
 void MonsterRecoveryPoint::spawnBasicRound(std::shared_ptr<IFOMonsterSpawnEntry::Round> basicRound) {
 	for (uint32_t i = 0; i < basicRound->getMonsterAmount(); i++) {
-		Position pos(spawnInformation->getPosition());
-		pos.setX(pos.getX() + randomizer.generateRandomValue());
-		pos.setY(pos.getY() + randomizer.generateRandomValue());
 		Monster* newlySpawnedMonster = MonsterCreationFactory::createMonster(basicRound->getMonsterId(), this);
 		onNewMonsterSpawned(newlySpawnedMonster);
 		monstersSpawned.insert(std::make_pair(newlySpawnedMonster->getLocationData()->getLocalId(), newlySpawnedMonster));
@@ -47,11 +46,14 @@ void MonsterRecoveryPoint::spawnTacticRoundWithGuards(const std::vector<std::sha
 
 void MonsterRecoveryPoint::checkForNewSpawns() {
 	uint64_t timeDifference = spawnCheckTimer.getPassedTimeInMillis();
-	std::vector<Monster*> listOfSpawnedMonsters;
 	if (timeDifference >= spawnInformation->getRespawnInterval()) {
 		while (monstersSpawned.size() <= spawnInformation->getMaximumAmountOfMonsters()) {
 			const std::vector<std::shared_ptr<IFOMonsterSpawnEntry::Round>>& basicRounds = spawnInformation->getBasicRounds();
-			MonsterSpawnTacticalType variation = calculateTacticalVariation();
+			MonsterSpawnTacticalType variation = MonsterSpawnTacticalType::BASIC_ONLY_ROUND;
+			if (spawnInformation->hasTacticalRounds()) {
+				variation = calculateTacticalVariation();
+				tacticalPointsGained += averageTacticalPointsGiven;
+			}
 			auto currentRound = basicRounds[currentBasicRoundId];
 			switch (variation) {
 				case MonsterSpawnTacticalType::BASIC_ONLY_ROUND:
@@ -68,17 +70,14 @@ void MonsterRecoveryPoint::checkForNewSpawns() {
 				break;
 			}
 		}
-		tacticalPointsGained++;
 		spawnCheckTimer.updateTimestamp();
 	}
 }
 
 
 MonsterSpawnTacticalType MonsterRecoveryPoint::calculateTacticalVariation() {
-	uint32_t maximumAmount = (spawnInformation->getMaximumAmountOfMonsters() * spawnInformation->getTacticalPointsNecessary());
-	uint32_t variationAmount = (spawnInformation->getMaximumAmountOfMonsters() - static_cast<uint32_t>(monstersSpawned.size())) * tacticalPointsGained * (spawnInformation->getTacticalPointsNecessary()/2);
-	uint32_t percentageDone = static_cast<uint32_t>(variationAmount * 100.0f / static_cast<double>(maximumAmount));
-	logger.logTrace("Percentage done till tactical: ", percentageDone);
+	float percentageDone = static_cast<float>(tacticalPointsGained / static_cast<double>(spawnInformation->getTacticalPointsNecessary()));
+	logger.logDebug("Percentage done till tactical: ", (percentageDone*100));
 
 	//Spawn tacticals after 1
 	MonsterSpawnTacticalType type = MonsterSpawnTacticalType::BASIC_ONLY_ROUND;

@@ -39,7 +39,10 @@ public:
 	}
 };
 
+
 std::ostream& operator<<(std::ostream& out, const LocationData* locationData);
 std::ostream& operator<<(std::ostream& out, const std::shared_ptr<LocationData>& locationData);
+std::wostream& operator<<(std::wostream& out, const LocationData* locationData);
+std::wostream& operator<<(std::wostream& out, const std::shared_ptr<LocationData>& locationData);
 
 #endif //__ROSE_LOCATION_DATA__

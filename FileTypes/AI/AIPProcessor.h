@@ -19,5 +19,6 @@ public:
 };
 
 std::ostream& operator<<(std::ostream& out, const AIEvent& event);
+std::wostream& operator<<(std::wostream& out, const AIEvent& event);
 
 #endif //__ROSE_AIP_PROCESSOR__

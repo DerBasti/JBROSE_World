@@ -13,7 +13,7 @@ Monster::Monster(NPCDefaultStatValues* defaultValues, AIP* ai, const Position& s
 	}
 	visualityProcessor = new MonsterVisualityProcessor(this);
 
-	getCombat()->setTeamId(0x64);
+	getCombat()->setTeamId(EntityDefaultTeamId::MONSTER);
 }
 
 Monster::~Monster() {

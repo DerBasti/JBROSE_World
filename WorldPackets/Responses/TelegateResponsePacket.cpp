@@ -18,6 +18,6 @@ void TelegateResponsePacket::appendContentToSendable(SendablePacket& packet) con
 
 std::string TelegateResponsePacket::toPrintable() const {
 	char buf[0x150] = { 0x00 };
-	sprintf_s(buf, "[TelegateResponsePacket]\n\t* Teleporting Entity with local id: %i\n\t* Map: %i\n\t* Position: %.2f, %.2f", localEntityId, WorldServer::getInstance()->getMapById(mapId)->getName(), position.getX(), position.getY());
+	sprintf_s(buf, "[TelegateResponsePacket]\n\t* Teleporting Entity with local id: %i\n\t* Map: %sn\t* Position: %.2f, %.2f", localEntityId, WorldServer::getInstance()->getMapById(mapId)->getName(), position.getX(), position.getY());
 	return std::string(buf);
 }

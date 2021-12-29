@@ -29,7 +29,7 @@ Player::Player(std::shared_ptr<ROSEClient>& networkInterface) {
 	attributes = new PlayerAttributeTypes();
 	visualityProcessor = new PlayerVisualityProcessor(this);
 
-	getCombat()->setTeamId(0x02);
+	getCombat()->setTeamId(EntityDefaultTeamId::PLAYER);
 
 	stance = new PlayerStance([&]() {
 		updateMovementSpeed();

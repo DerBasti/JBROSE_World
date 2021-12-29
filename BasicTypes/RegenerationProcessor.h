@@ -37,7 +37,7 @@ public:
 
 class RegenerationProcessor {
 private:
-	ROSELogger logger;
+	ROSEThreadedLogger logger;
 	class Player* player;
 	Timer naturalHealTimer;
 	std::vector<ConsumedItem> consumedItems;

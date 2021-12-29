@@ -112,10 +112,12 @@ public:
 
 class RestorePoint {
 private:
+	std::shared_ptr<char> restorePointName;
 	uint32_t restorePointId;
 	uint16_t mapId;
 	Position center;
 public:
+	static const char* DEFAULT_RESTORE_POINT_NAME;
 	RestorePoint(uint32_t id, uint16_t mapId, EventZoneData* rawRestorePointData);
 	virtual ~RestorePoint();
 
@@ -127,6 +129,9 @@ public:
 	}
 	__inline Position getCenterPosition() const {
 		return center;
+	}
+	__inline const char* getName() const {
+		return restorePointName.get();
 	}
 };
 

@@ -355,7 +355,10 @@ bool WorldServer::loadCharacterDataForCharacter(Player* player) {
 		playerTraits->setFaceStyle(row->getColumnDataAsInt(4));
 		playerTraits->setHairStyle(row->getColumnDataAsInt(5));
 
-		player->getLocationData()->setMap(maps[22]);
+		player->getLocationData()->setMap(maps[21]);
+		Position position = player->getLocationData()->getMap()->getDefaultRespawnPoint();
+		player->getLocationData()->getMapPosition()->setCurrentPosition(position);
+		player->getLocationData()->getMapPosition()->setDestinationPosition(position);
 
 	}
 	else {

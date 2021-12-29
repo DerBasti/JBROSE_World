@@ -60,7 +60,7 @@ DamageHit Combat::doBasicAttack() {
 	int16_t damage = 20;
 	float ratio = attackPower / static_cast<float>(enemyDefense + attackPower + 1);
 	if (target->isPlayer()) {
-		damage = attackPower * ratio * 0.9f;
+		damage = attackPower * ratio - (enemyDefense * (1.1f - ratio));
 	}
 	else {
 		damage = attackPower * ratio;

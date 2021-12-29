@@ -5,7 +5,7 @@
 #include "..\..\JBROSE_Common\FileStoredReader.h"
 #include "..\..\JBROSE_Common\Logger.h"
 
-ROSELogger logger;
+ROSEThreadedLogger logger;
 
 STBFile::STBFile(const char *filePath) {
 	this->filePath = std::string(filePath);

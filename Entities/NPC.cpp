@@ -21,7 +21,7 @@ NPC::NPC(NPCDefaultStatValues* defaultValues, AIP* ai, const Position& spawnPosi
 	spawnPoint = nullptr;
 	stats = new EntityStats();
 
-	getCombat()->setTeamId(0x01);
+	getCombat()->setTeamId(EntityDefaultTeamId::NPC);
 
 	getLocationData()->getMapPosition()->setCurrentPosition(spawnPosition);
 	getLocationData()->getMapPosition()->setDestinationPosition(spawnPosition);

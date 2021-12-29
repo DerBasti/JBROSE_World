@@ -79,6 +79,7 @@ private:
 	std::shared_ptr<char> spawnName;
 	std::vector<std::shared_ptr<Round>> basicRounds;
 	std::vector<std::shared_ptr<Round>> tacticalRounds;
+	uint8_t averageMonstersSpawnedPerBasicRound;
 	uint64_t respawnInterval;
 	uint32_t maximumAmountOfMonsters;
 	float maximumRadiusForSpawn;
@@ -95,6 +96,13 @@ public:
 	}
 	__inline const std::vector<std::shared_ptr<Round>>& getTacticalRounds() const {
 		return tacticalRounds;
+	}
+	__inline bool hasTacticalRounds() const {
+		return !tacticalRounds.empty();
+	}
+
+	__inline uint16_t getAverageMonsterAmountPerSpawn() const {
+		return averageMonstersSpawnedPerBasicRound;
 	}
 
 	__inline uint64_t getRespawnInterval() const {

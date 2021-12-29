@@ -13,7 +13,7 @@ enum class PositionUpdateResult : uint16_t {
 class PositionProcessor {
 private:
 	class Combat* combat;
-	ROSELogger logger;
+	ROSEThreadedLogger logger;
 	MapPosition* position;
 	Timer timer;
 	std::function<uint16_t()> movementSpeedFromEntityMethod;
