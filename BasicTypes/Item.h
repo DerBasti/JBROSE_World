@@ -141,7 +141,7 @@ public:
 		return durability;
 	}
 	__inline void setDurability(const uint8_t newDurability) {
-		durability = newDurability;
+		durability = newDurability <= 120 ? newDurability : 120;
 	}
 	__inline uint16_t getLifespan() const {
 		return lifespan;

@@ -60,10 +60,10 @@ uint16_t Inventory::getTotalWeight() const {
 			ItemType type = item.getType();
 			uint16_t currentItemWeight = 0;
 			if (type == ItemTypeList::CONSUMABLE) {
-				WorldServer::getInstance()->getConsumeSTB()->getWeightOfEntry(item.getId()) * item.getAmount();
+				currentItemWeight = WorldServer::getInstance()->getConsumeSTB()->getWeightOfEntry(item.getId()) * item.getAmount();
 			}
 			else {
-				WorldServer::getInstance()->getEquipmentSTB(item.getType().getTypeId())->getWeightOfEntry(item.getId()) * item.getAmount();
+				currentItemWeight = WorldServer::getInstance()->getEquipmentSTB(item.getType().getTypeId())->getWeightOfEntry(item.getId()) * item.getAmount();
 			}
 			totalWeight += currentItemWeight;
 		}

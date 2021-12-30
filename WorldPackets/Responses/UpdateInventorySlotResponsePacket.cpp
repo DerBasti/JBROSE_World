@@ -25,7 +25,7 @@ void UpdateInventorySlotsResponsePacket::appendContentToSendable(SendablePacket&
 
 std::string UpdateInventorySlotsResponsePacket::toPrintable() const {
 	char buf[0x250] = { 0x00 };
-	sprintf_s(buf, "[UpdateInventorySlotsResponsePacket]\n\t* Amount of items to update: %i", itemUpdates.size());
+	sprintf_s(buf, "[UpdateInventorySlotsResponsePacket]\n\t* Amount of items to update: %llu", itemUpdates.size());
 	for (size_t i = 0; i < itemUpdates.size(); i++) {
 		const Item& item = itemUpdates.at(i);
 		size_t alreadyAssignedBytes = strlen(buf);

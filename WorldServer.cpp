@@ -621,6 +621,7 @@ Item WorldServer::generateDrop(const uint16_t dropRowId, const uint16_t column) 
 	}
 	Item dropItem(ItemTypeList::toItemType(itemId / 1000), itemId % 1000);
 	if (dropItem.isStackable()) {
+		randomizer.setNewBoundries(0, 5);
 		dropItem.setAmount(randomizer.generateRandomValue() + 1);
 	}
 	else {
