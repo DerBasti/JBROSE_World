@@ -104,6 +104,9 @@ bool PlayerPacketHandler::handlePacket(Player* player, const Packet* packet) {
 		case CollisionRequestPacket::ID:
 			success = handleCollision(player, packet);
 		break;
+		case CloseShopRequestPacket::ID:
+			success = handleShopClose(player, packet);
+		break;
 		case CurrentWeightRequestPacket::ID:
 			success = handleWeightChange(player, packet);
 		break;
@@ -248,6 +251,8 @@ bool Player::loadPlayerDataFromAccount(uint32_t accountId) {
 	success &= server->loadInventoryForCharacter(this);
 
 	updateCombatValues();
+	getStats()->setCurrentHp(getStats()->getMaxHp());
+	getStats()->setCurrentMp(getStats()->getMaxMp());
 	return success;
 }
 
@@ -353,9 +358,12 @@ PickupDropResponsePacket Player::onDropPickup(Drop* drop) {
 		response.setDropMessageType(PickupDropMessageType::INVENTORY_FULL);
 		return response;
 	}
+	if (item.getType() == ItemTypeList::MONEY) {
+		response.setPreviousMoneyAmount(getInventory()->getMoneyAmount());
+	}
 	uint8_t slotId = getInventory()->addItemToInventory(item);
 	response.setDropMessageType(PickupDropMessageType::OKAY);
-	response.setItemToAdd(slotId, item);
+	response.setItemToAdd(slotId, getInventory()->getItem(slotId));
 	return response;
 }
 
@@ -365,6 +373,10 @@ bool PlayerPacketHandler::handleTelegateEntered(Player* player, const Packet* pa
 
 	WorldServer *server = WorldServer::getInstance();
 	return server->teleportPlayerFromTelegate(player, telegateId);
+}
+
+bool PlayerPacketHandler::handleShopClose(Player* player, const Packet* packet) {
+	return true;
 }
 
 bool PlayerPacketHandler::handleCollision(Player* player, const Packet* packet) {

@@ -190,6 +190,10 @@ private:
 		return static_cast<uint16_t>(getEntry(id)->getColumnDataAsInt(type));
 	}
 public:
+	const static uint16_t PRICE = 0x05;
+	const static uint16_t PRICE_RATE = 0x06;
+	const static uint16_t WEIGHT = 0x07;
+	const static uint16_t QUALITY = 0x08;
 	const static uint16_t SCRIPT_EXECUTION_TYPE_COLUMN = 0x07;
 	const static uint16_t STAT_TYPE_REQUIRED_COLUMN = 0x11;
 	const static uint16_t STAT_AMOUNT_REQUIRED_COLUMN = 0x12;
@@ -201,6 +205,12 @@ public:
 	ConsumeSTBFile(const char *filePath) : STBFile(filePath) {}
 	virtual ~ConsumeSTBFile() {}
 
+	__inline uint16_t getWeightOfEntry(uint16_t id) const {
+		return getValueOfEntry(id, WEIGHT);
+	}
+	__inline uint16_t getQualityOfEntry(uint16_t id) const {
+		return getValueOfEntry(id, QUALITY);
+	}
 	__inline uint16_t getScriptExecutionTypeOfEntry(uint16_t id) const {
 		return getValueOfEntry(id, SCRIPT_EXECUTION_TYPE_COLUMN);
 	}
@@ -220,10 +230,5 @@ public:
 		return getValueOfEntry(id, STATUS_STB_REFERENCE_COLUMN);
 	}
 };
-
-class DropSTBFile : public STBFile {
-
-};
-
 
 #endif //__ROSE_STB__

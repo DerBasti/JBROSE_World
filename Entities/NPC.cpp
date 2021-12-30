@@ -175,8 +175,9 @@ NPCDefaultStatValues::NPCDefaultStatValues(uint16_t id, STBEntry* entry) {
 	attackSpeed = entry->getColumnDataAsInt(14);
 	maxHp = level * hpPerLevel;
 	aiId = entry->getColumnDataAsInt(16);
-	dropItemChance = entry->getColumnDataAsInt(19);
-	dropMoneyChance = entry->getColumnDataAsInt(20);
+	dropItemRow = entry->getColumnDataAsInt(18);
+	dropMoneyChance = entry->getColumnDataAsInt(19);
+	dropItemChance = entry->getColumnDataAsInt(20);
 	attackRange = entry->getColumnDataAsInt(26);
 	npcFlag = entry->getColumnDataAsInt(27) == 999;
 	experiencePoints = entry->getColumnDataAsInt(17);

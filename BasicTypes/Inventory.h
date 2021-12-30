@@ -47,7 +47,7 @@ public:
 		this->money = money;
 	}
 
-	__inline Item& getItem(const uint8_t slot) {
+	__inline Item& getItem(uint8_t slot) {
 		return inventorySlots[slot];
 	}
 

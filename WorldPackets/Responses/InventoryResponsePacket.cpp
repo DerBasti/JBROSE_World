@@ -2,7 +2,7 @@
 #include "..\..\WorldClient.h"
 
 InventoryResponsePacket::InventoryResponsePacket(Inventory* inventory) : ResponsePacket(ID) {
-	moneyAmount = inventory->getItem(0).getAmount();
+	moneyAmount = inventory->getMoneyAmount();
 
 	for (uint8_t i = 1; i < 140; i++) {
 		const Item& item = inventory->getItem(i);

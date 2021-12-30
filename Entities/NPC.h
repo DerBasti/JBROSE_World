@@ -16,6 +16,7 @@ private:
 	uint16_t magicDefense;
 	uint16_t attackSpeed;
 	uint16_t attackRange;
+	uint16_t dropItemRow;
 	uint16_t dropItemChance;
 	uint16_t dropMoneyChance;
 	bool npcFlag;
@@ -75,6 +76,12 @@ public:
 	}
 	__inline uint16_t getDefaultMoneyDropChance() const {
 		return dropMoneyChance;
+	}
+	__inline uint16_t getDefaultOwnDropChance() const {
+		return dropItemChance;
+	}
+	__inline uint16_t getDropTableRowId() const {
+		return dropItemRow;
 	}
 };
 

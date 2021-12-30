@@ -102,7 +102,8 @@ void WorldServer::loadFileEntries() {
 		ptr = nullptr;
 	});
 	
-	std::thread stbThreads[14];
+	const uint16_t stbThreadSize = 15;
+	std::thread stbThreads[stbThreadSize];
 
 	stbThreads[0] = std::thread([this]() {
 		equipmentSTBs.get()[ItemTypeList::ARMOR.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_BODY.STB");
@@ -146,7 +147,10 @@ void WorldServer::loadFileEntries() {
 	stbThreads[13] = std::thread([this]() {
 		equipmentSTBs.get()[ItemTypeList::WEAPON.getTypeId()] = new EquipmentSTB("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_WEAPON.STB");
 	});
-	for (uint16_t i = 0; i < 14; i++) {
+	stbThreads[14] = std::thread([this]() {
+		dropSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\ITEM_DROP.STB"));
+	});
+	for (uint16_t i = 0; i < stbThreadSize; i++) {
 		stbThreads[i].join();
 	}
 	ConsumableItemList::loadListFromStb(getConsumeSTB());
@@ -355,7 +359,7 @@ bool WorldServer::loadCharacterDataForCharacter(Player* player) {
 		playerTraits->setFaceStyle(row->getColumnDataAsInt(4));
 		playerTraits->setHairStyle(row->getColumnDataAsInt(5));
 
-		player->getLocationData()->setMap(maps[21]);
+		player->getLocationData()->setMap(maps[22]);
 		Position position = player->getLocationData()->getMap()->getDefaultRespawnPoint();
 		player->getLocationData()->getMapPosition()->setCurrentPosition(position);
 		player->getLocationData()->getMapPosition()->setDestinationPosition(position);
@@ -401,11 +405,11 @@ bool WorldServer::loadInventoryForCharacter(Player* player) {
 			Item itemToAssign;
 			if (itemType != ItemTypeList::MONEY) {
 				itemToAssign = Item(itemType, itemId, itemAmount);
+				inventory->setItem(currentRow->getColumnDataAsInt(3), itemToAssign);
 			}
 			else {
-				itemToAssign = MoneyItem(itemAmount);
+				inventory->setMoney(itemAmount);
 			}
-			inventory->setItem(currentRow->getColumnDataAsInt(3), itemToAssign);
 		}
 	}
 	else {
@@ -453,6 +457,7 @@ bool WorldServer::saveInventoryForCharacter(Player* player) {
 		for (uint8_t i = 0; i < Inventory::MAX_SLOTS;i++) {
 			success &= saveItemForPlayerInventory(player, i);
 		}
+		success &= saveMoneyForCharacter(player);
 	}
 	else {
 		logger.logError("[DB-ERROR]: ", database->getLastError());
@@ -474,6 +479,14 @@ bool WorldServer::saveItemForPlayerInventory(Player* player, const uint8_t slotI
 		}
 	}
 	return currentInsertSuccess;
+}
+
+bool WorldServer::saveMoneyForCharacter(Player* player) {
+	char buf[0x200] = { 0x00 };
+	sprintf_s(buf, "INSERT INTO items (player_id, item_type, item_id, amount, slot, durability, stat_id, refinement, appraised, socketed, lifespan) VALUES(%i,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i)",
+		player->getTraits()->getCharacterId(), ItemTypeList::MONEY.getTypeId(), 0, player->getInventory()->getMoneyAmount(), 0, 35,
+		0, 0, true, false, 1000);
+	return database->insertQuery(buf);
 }
 
 bool WorldServer::teleportPlayerFromTelegate(Player* player, const uint16_t telegateId) {
@@ -566,7 +579,17 @@ bool WorldServer::addDropFromNPC(NPC* monster, int16_t levelDifferenceToKiller) 
 		drop = new Drop(item, pos);
 	}
 	else {
-		//TODO
+		drawnValue = randomizer.generateRandomValue();
+		uint16_t dropRowId = monster->getLocationData()->getMap()->getId();
+		if (drawnValue <= monster->getDefaultStatValues()->getDefaultOwnDropChance()) {
+			dropRowId = monster->getDefaultStatValues()->getDropTableRowId();
+		}
+		randomizer.setNewBoundries(0, 30);
+		uint16_t columnId = randomizer.generateRandomValue();
+		Item dropItem = generateDrop(dropRowId, columnId);
+		if (dropItem.isValid()) {
+			drop = new Drop(dropItem, pos);
+		}
 	}
 
 	bool success = drop != nullptr;
@@ -575,4 +598,35 @@ bool WorldServer::addDropFromNPC(NPC* monster, int16_t levelDifferenceToKiller) 
 		success &= monster->getLocationData()->getMap()->addEntityToInsertionQueue(drop);
 	}
 	return success;
+}
+
+Item WorldServer::generateDrop(const uint16_t dropRowId, const uint16_t column) const {
+	auto dropRowEntry = dropSTB->getEntry(dropRowId);
+	uint32_t itemId = dropRowEntry->getColumnDataAsInt(column);
+	NumericRandomizer<uint8_t> randomizer(0, 5);
+	if (itemId <= 1000) {
+		if (itemId > 0 && itemId < 5) {
+			randomizer.setNewBoundries(5, itemId * 10);
+			uint16_t offset = 26 + randomizer.generateRandomValue();
+			if (offset >= dropRowEntry->getColumnAmount()) {
+				return Item();
+			}
+			itemId = dropRowEntry->getColumnDataAsInt(offset);
+		} else {
+			return Item();
+		}
+	}
+	if (itemId <= 1000) {
+		return Item();
+	}
+	Item dropItem(ItemTypeList::toItemType(itemId / 1000), itemId % 1000);
+	if (dropItem.isStackable()) {
+		dropItem.setAmount(randomizer.generateRandomValue() + 1);
+	}
+	else {
+		EquipmentSTB *stbFile = (EquipmentSTB*)equipmentSTBs.get()[dropItem.getType().getTypeId()];
+		randomizer.setNewBoundries(35, stbFile->getQualityOfEntry(dropItem.getId()) + 30);
+		dropItem.setDurability(randomizer.generateRandomValue());
+	}
+	return dropItem;
 }

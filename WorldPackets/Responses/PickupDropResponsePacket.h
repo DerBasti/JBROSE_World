@@ -4,7 +4,7 @@
 #include "../../../JBROSE_Common/Packet.h"
 #include "../../BasicTypes/Item.h"
 
-enum class PickupDropMessageType : uint16_t {
+enum class PickupDropMessageType : uint8_t {
 	OKAY,
 	NOT_OWNER = 2,
 	INVENTORY_FULL = 3
@@ -14,8 +14,9 @@ class PickupDropResponsePacket : public ResponsePacket {
 private:
 	uint16_t localId;
 	PickupDropMessageType messageType;
-	uint8_t inventorySlot;
+	uint16_t inventorySlot;
 	Item itemToAdd;
+	uint32_t previousMoneyAmount;
 protected:
 	virtual void appendContentToSendable(SendablePacket& packet) const;
 public:
@@ -34,7 +35,10 @@ public:
 		inventorySlot = slotId;
 		itemToAdd = item;
 	}
-	__inline uint8_t getSlotId() const {
+	__inline void setPreviousMoneyAmount(const uint32_t prevAmount) {
+		this->previousMoneyAmount = prevAmount;
+	}
+	__inline uint16_t getSlotId() const {
 		return inventorySlot;
 	}
 	const Item& getItem() const {

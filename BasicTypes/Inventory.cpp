@@ -38,7 +38,12 @@ uint8_t Inventory::addItemToInventory(const Item& item) {
 	uint8_t slot = getSlotForItem(item);
 	if (slot >= 0 && slot <= Inventory::MAX_SLOTS) {
 		if (item.isStackable()) {
-			this->inventorySlots[slot].addAmount(item.getAmount());
+			if (this->inventorySlots[slot].isValid()) {
+				this->inventorySlots[slot].addAmount(item.getAmount());
+			}
+			else {
+				this->inventorySlots[slot] = item;
+			}
 		}
 		else {
 			this->inventorySlots[slot] = item;
@@ -52,7 +57,15 @@ uint16_t Inventory::getTotalWeight() const {
 	for (uint8_t i = 1; i < Inventory::MAX_SLOTS; i++) {
 		const Item& item = inventorySlots[i];
 		if (item.isValid()) {
-			totalWeight += WorldServer::getInstance()->getEquipmentSTB(item.getType().getTypeId())->getWeightOfEntry(item.getId()) * item.getAmount();
+			ItemType type = item.getType();
+			uint16_t currentItemWeight = 0;
+			if (type == ItemTypeList::CONSUMABLE) {
+				WorldServer::getInstance()->getConsumeSTB()->getWeightOfEntry(item.getId()) * item.getAmount();
+			}
+			else {
+				WorldServer::getInstance()->getEquipmentSTB(item.getType().getTypeId())->getWeightOfEntry(item.getId()) * item.getAmount();
+			}
+			totalWeight += currentItemWeight;
 		}
 	}
 	return totalWeight;

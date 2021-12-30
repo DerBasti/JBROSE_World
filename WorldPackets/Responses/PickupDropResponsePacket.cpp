@@ -2,6 +2,7 @@
 
 PickupDropResponsePacket::PickupDropResponsePacket(uint16_t localId) : ResponsePacket(ID) {
 	this->localId = localId;
+	previousMoneyAmount = 0;
 }
 
 PickupDropResponsePacket::~PickupDropResponsePacket() {
@@ -10,11 +11,16 @@ PickupDropResponsePacket::~PickupDropResponsePacket() {
 
 void PickupDropResponsePacket::appendContentToSendable(SendablePacket& packet) const {
 	packet.addData(localId);
-	packet.addData(static_cast<uint16_t>(messageType));
+	packet.addData(static_cast<uint8_t>(messageType));
 	if (messageType == PickupDropMessageType::OKAY) {
 		packet.addData(inventorySlot);
 		packet.addData(ItemVisuality::toPacketHeader(itemToAdd));
-		packet.addData(ItemVisuality::toPacketBody(itemToAdd));
+		if (itemToAdd.getType() == ItemTypeList::MONEY) {
+			packet.addData(ItemVisuality::toPacketBody(itemToAdd) - previousMoneyAmount);
+		}
+		else {
+			packet.addData(ItemVisuality::toPacketBody(itemToAdd));
+		}
 	}
 }
 

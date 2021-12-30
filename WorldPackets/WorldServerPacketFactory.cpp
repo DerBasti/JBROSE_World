@@ -6,6 +6,7 @@ WorldServerPacketFactory::WorldServerPacketFactory() {
 	addCommand<CollisionRequestPacket>(CollisionRequestPacket::ID);
 	addCommand<ChangeEquipmentRequestPacket>(ChangeEquipmentRequestPacket::ID);
 	addCommand<ChangeRespawnTownRequestPacket>(ChangeRespawnTownRequestPacket::ID);
+	addCommand<CloseShopRequestPacket>(CloseShopRequestPacket::ID);
 	addCommand<CurrentWeightRequestPacket>(CurrentWeightRequestPacket::ID);
 	addCommand<DistributeStatPointRequestPacket>(DistributeStatPointRequestPacket::ID);
 	addCommand<DropItemFromInventoryRequestPacket>(DropItemFromInventoryRequestPacket::ID);

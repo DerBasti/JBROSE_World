@@ -30,6 +30,7 @@ private:
 	std::shared_ptr<STBFile> aiSTB;
 	std::shared_ptr<STBFile> npcSTB;
 	std::shared_ptr<STBFile> warpSTB;
+	std::shared_ptr<STBFile> dropSTB;
 	std::shared_ptr<ZoneSTBFile> zoneSTB;
 	std::shared_ptr<StatusSTBFile*> statusSTB;
 	std::shared_ptr<STBFile*> equipmentSTBs;
@@ -56,9 +57,11 @@ private:
 	bool saveSkilledAttributesForCharacter(Player* player);
 	bool saveInventoryForCharacter(Player* player);
 	bool saveItemForPlayerInventory(Player* player, const uint8_t slotId);
+	bool saveMoneyForCharacter(Player* player);
 
 	ZMO* getAttackAnimationByWeaponId(const uint32_t id) const;
 	ZMO* getAttackAnimationBySkillId(const uint32_t id) const;
+	Item generateDrop(const uint16_t dropRowId, const uint16_t column) const;
 protected:
 	virtual void onServerStartup();
 	virtual bool onPacketsReady(std::shared_ptr<ROSEClient>& client, std::queue<std::shared_ptr<Packet>>& packetQueue);

@@ -7,6 +7,7 @@
 #include "Requests/CollisionRequestPacket.h"
 #include "Requests/ChangeEquipmentRequestPacket.h"
 #include "Requests/ChangeRespawnTownRequestPacket.h"
+#include "Requests/CloseShopRequestPacket.h"
 #include "Requests/CurrentWeightRequestPacket.h"
 #include "Requests/DistributeStatPointsRequestPacket.h"
 #include "Requests/DropItemFromInventoryRequestPacket.h"

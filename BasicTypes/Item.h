@@ -140,6 +140,9 @@ public:
 	__inline uint8_t getDurability() const {
 		return durability;
 	}
+	__inline void setDurability(const uint8_t newDurability) {
+		durability = newDurability;
+	}
 	__inline uint16_t getLifespan() const {
 		return lifespan;
 	}

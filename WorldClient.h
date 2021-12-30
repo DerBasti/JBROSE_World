@@ -249,6 +249,7 @@ protected:
 	bool handleCollision(Player* player, const Packet* packet);
 	bool handleChangedEquipment(Player* player, const Packet* packet);
 	bool handleChangedRespawnTown(Player* player, const Packet* packet);
+	bool handleShopClose(Player* player, const Packet* packet);
 	bool handleWeightChange(Player* player, const Packet* packet);
 	bool handleDistributionOfStatPoint(Player* player, const Packet *packet);
 	bool handleDropFromInventory(Player* player, const Packet* packet);
