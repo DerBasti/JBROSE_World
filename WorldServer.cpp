@@ -630,7 +630,7 @@ Item WorldServer::generateDrop(const uint16_t dropRowId, const uint16_t column) 
 	WeightedNumericRandomizer<uint8_t> randomizer(0, 5);
 	if (itemId <= 1000) {
 		if (itemId > 0 && itemId < 5) {
-			randomizer.setBoundriesAndWeights(4, itemId * 6, std::vector<double>{1.0, 0.8f, 0.35f});
+			randomizer.setBoundriesAndWeightDistribution(4, itemId * 6, std::vector<double>{1.0, 0.8f, 0.35f});
 			uint16_t offset = 26 + randomizer.generateRandomValue();
 			if (offset >= dropRowEntry->getColumnAmount()) {
 				logger.logWarn("Droptable offset for generating drop is out of bounds: ", offset, ". Maximum allowed: ", dropRowEntry->getColumnAmount());
@@ -646,11 +646,11 @@ Item WorldServer::generateDrop(const uint16_t dropRowId, const uint16_t column) 
 	EquipmentSTB *stbFile = (EquipmentSTB*)equipmentSTBs.get()[dropItem.getType().getTypeId()];
 	uint32_t quality = stbFile->getQualityOfEntry(dropItem.getId());
 	if (dropItem.isStackable()) {
-		randomizer.setBoundriesAndWeights(1, 5, { 1.0, (120.0 / (double)quality) / 7.5 });
+		randomizer.setBoundriesAndWeightDistribution(1, 5, { 1.0, (120.0 / (double)quality) / 7.5 });
 		dropItem.setAmount(randomizer.generateRandomValue());
 	}
 	else {
-		randomizer.setBoundriesAndWeights(35, quality + 30, std::vector<double>{35.0, (double)quality});
+		randomizer.setBoundriesAndWeightDistribution(35, quality + 30, std::vector<double>{35.0, (double)quality});
 		dropItem.setDurability(randomizer.generateRandomValue());
 	}
 	return dropItem;
