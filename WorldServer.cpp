@@ -607,7 +607,7 @@ bool WorldServer::addDropFromNPC(NPC* monster, int16_t levelDifferenceToKiller) 
 			dropRowId = monster->getDefaultStatValues()->getDropTableRowId();
 		}
 		randomizer.setNewBoundries(0, 30);
-		randomizer.setNewWeights(std::move(std::vector<double>{1.0, 0.85}));
+		randomizer.setNewWeightDistribution(std::move(std::vector<double>{1.0, 0.85}));
 		uint16_t columnId = randomizer.generateRandomValue();
 		Item dropItem = generateDrop(dropRowId, columnId);
 		if (dropItem.isValid()) {
