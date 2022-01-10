@@ -108,6 +108,7 @@ private:
 	ItemType type;
 	uint16_t id;
 	uint32_t amount;
+	uint16_t itemCategoryId;
 	uint8_t durability;
 	uint16_t lifespan;
 	uint16_t statId;
@@ -146,6 +147,12 @@ public:
 	__inline uint16_t getLifespan() const {
 		return lifespan;
 	}
+	__inline uint16_t getCategoryId() const {
+		return itemCategoryId;
+	}
+	__inline void setCategoryId(uint16_t categoryId) {
+		itemCategoryId = categoryId;
+	}
 	__inline void setLifespan(const uint16_t lifespan) {
 		this->lifespan = lifespan;
 	}
@@ -183,6 +190,7 @@ public:
 		lifespan = 0;
 		statId = 0;
 		refineLevel = 0;
+		itemCategoryId = 0;
 		type = ItemTypeList::UNKNOWN;
 		socketed = false;
 		appraised = true;

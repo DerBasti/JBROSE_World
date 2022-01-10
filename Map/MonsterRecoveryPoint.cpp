@@ -19,6 +19,7 @@ MonsterRecoveryPoint::MonsterRecoveryPoint(std::shared_ptr<IFOMonsterSpawnEntry>
 MonsterRecoveryPoint::~MonsterRecoveryPoint() {
 
 }
+
 void MonsterRecoveryPoint::spawnBasicRound(std::shared_ptr<IFOMonsterSpawnEntry::Round> basicRound) {
 	for (uint32_t i = 0; i < basicRound->getMonsterAmount(); i++) {
 		Monster* newlySpawnedMonster = MonsterCreationFactory::createMonster(basicRound->getMonsterId(), this);
@@ -47,7 +48,7 @@ void MonsterRecoveryPoint::spawnTacticRoundWithGuards(const std::vector<std::sha
 void MonsterRecoveryPoint::checkForNewSpawns() {
 	uint64_t timeDifference = spawnCheckTimer.getPassedTimeInMillis();
 	if (timeDifference >= spawnInformation->getRespawnInterval()) {
-		while (monstersSpawned.size() <= spawnInformation->getMaximumAmountOfMonsters()) {
+		while (monstersSpawned.size() < spawnInformation->getMaximumAmountOfMonsters()) {
 			const std::vector<std::shared_ptr<IFOMonsterSpawnEntry::Round>>& basicRounds = spawnInformation->getBasicRounds();
 			MonsterSpawnTacticalType variation = MonsterSpawnTacticalType::BASIC_ONLY_ROUND;
 			if (spawnInformation->hasTacticalRounds()) {
@@ -90,4 +91,11 @@ MonsterSpawnTacticalType MonsterRecoveryPoint::calculateTacticalVariation() {
 		}
 	}
 	return type;
+}
+
+Position MonsterRecoveryPoint::getRandomPositionFromSpawn() {
+	Position pos(spawnInformation->getPosition());
+	pos.setX(pos.getX() + randomizer.generateRandomValue());
+	pos.setY(pos.getY() + randomizer.generateRandomValue());
+	return pos;
 }

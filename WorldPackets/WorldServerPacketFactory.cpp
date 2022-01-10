@@ -19,6 +19,7 @@ WorldServerPacketFactory::WorldServerPacketFactory() {
 	addCommand<ShowMonsterHpRequestPacket>(ShowMonsterHpRequestPacket::ID);
 	addCommand<StanceRequestPacket>(StanceRequestPacket::ID);
 	addCommand<TelegateRequestPacket>(TelegateRequestPacket::ID);
+	addCommand<UseConsumableRequestPacket>(UseConsumableRequestPacket::ID);
 }
 
 WorldServerPacketFactory::~WorldServerPacketFactory() {

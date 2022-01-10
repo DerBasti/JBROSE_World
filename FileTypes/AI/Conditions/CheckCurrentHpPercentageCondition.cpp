@@ -6,7 +6,7 @@ CheckCurrentHpPercentageCondition::CheckCurrentHpPercentageCondition(std::shared
 	interpreter.skipBytes(DEFAULT_HEADER_LENGTH);
 
 	hpInPercent = interpreter.readUInt();
-	operation = interpreter.readByte() == 0 ? OperationType::BIGGER_EQUAL : OperationType::SMALLER_EQUAL;
+	operation = interpreter.readByte() == 0 ? CheckOperationType::BIGGER_EQUAL : CheckOperationType::SMALLER_EQUAL;
 }
 
 CheckCurrentHpPercentageCondition::~CheckCurrentHpPercentageCondition() {

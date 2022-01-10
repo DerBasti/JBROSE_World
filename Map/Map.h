@@ -83,6 +83,7 @@ private:
 	std::vector<class IFOSpawn*> spawnPoints;
 
 	bool localIds[0x10000] = { false };
+	NumericRandomizer<uint16_t> localIdRandomizer;
 
 	std::deque<class Entity*> entityInsertionQueue;
 	std::unordered_map<uint16_t, std::shared_ptr<class RemovalRequest>> entityRemovalQueue;

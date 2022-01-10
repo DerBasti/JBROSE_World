@@ -97,9 +97,8 @@ Entity* MapSector::getEntity(const uint16_t id) {
 		auto otherEntity = pair.second;
 		if (otherEntity->getLocationData()->getLocalId() == id) {
 			entity = otherEntity;
-			return false;
 		}
-		return true;
+		return entity == nullptr;
 	});
 	return entity;
 }

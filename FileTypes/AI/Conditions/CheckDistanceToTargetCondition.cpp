@@ -5,7 +5,7 @@ CheckDistanceToTargetCondition::CheckDistanceToTargetCondition(std::shared_ptr<c
 	LoadedDataReader reader(datablock.get());
 	reader.skipBytes(DEFAULT_HEADER_LENGTH);
 	neededDistance = reader.readUInt() * 100;
-	operation = reader.readByte() == 0 ? OperationType::BIGGER_EQUAL : OperationType::SMALLER_EQUAL;
+	operation = reader.readByte() == 0 ? CheckOperationType::BIGGER_EQUAL : CheckOperationType::SMALLER_EQUAL;
 }
 
 CheckDistanceToTargetCondition::CheckDistanceToTargetCondition(uint32_t operationCode, uint32_t length, const char* contextData) : AICondition(operationCode, length, contextData) {

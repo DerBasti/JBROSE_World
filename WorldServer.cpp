@@ -6,6 +6,7 @@
 #include "..\JBROSE_Common\DirectoryParser.h"
 #include "FileTypes/AIP.h"
 #include "FileTypes/IFO.h"
+#include "FileTypes/QSD.h"
 #include "FileTypes/ZON.h"
 #include "Map/MapRemovalRequest.h"
 #include "WorldPackets/Responses/TelegateResponsePacket.h"
@@ -23,6 +24,11 @@ WorldServer::WorldServer(uint16_t port) : ROSEServer(port) {
 
 WorldServer::~WorldServer() {
 	NPCCreationFactory::deleteAllEntries();
+
+	if (consumableItemList) {
+		delete consumableItemList;
+		consumableItemList = nullptr;
+	}
 
 	std::for_each(telegates.begin(), telegates.end(), [](std::pair<uint16_t, Telegate*> gatePair) {
 		delete gatePair.second;
@@ -76,6 +82,7 @@ void WorldServer::onServerStartup() {
 	Timer timer;
 	logger.logInfo("Starting up server...");
 	loadFileEntries();
+	loadQuests();
 	loadAttackAnimationTimings();
 	loadAi();
 	loadNpcDefaultValues();
@@ -93,7 +100,7 @@ void WorldServer::loadFileEntries() {
 	warpSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\WARP.STB"));
 	zoneSTB = std::shared_ptr<ZoneSTBFile>(new ZoneSTBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_ZONE.STB"));
 		
-	equipmentSTBs = std::shared_ptr<STBFile*>(new STBFile*[15], [](STBFile** ptr) {
+	equipmentSTBs = std::shared_ptr<EquipmentSTB*>(new EquipmentSTB*[15], [](EquipmentSTB** ptr) {
 		for (uint16_t i = 0; i < 15; i++) {
 			delete ptr[i];
 			ptr[i] = nullptr;
@@ -102,7 +109,7 @@ void WorldServer::loadFileEntries() {
 		ptr = nullptr;
 	});
 	
-	const uint16_t stbThreadSize = 15;
+	const uint16_t stbThreadSize = 16;
 	std::thread stbThreads[stbThreadSize];
 
 	stbThreads[0] = std::thread([this]() {
@@ -150,10 +157,13 @@ void WorldServer::loadFileEntries() {
 	stbThreads[14] = std::thread([this]() {
 		dropSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\ITEM_DROP.STB"));
 	});
+	stbThreads[15] = std::thread([this]() {
+		statusSTB = std::shared_ptr<StatusSTBFile>(new StatusSTBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_STATUS.STB"));
+	});
 	for (uint16_t i = 0; i < stbThreadSize; i++) {
 		stbThreads[i].join();
 	}
-	ConsumableItemList::loadListFromStb(getConsumeSTB());
+	consumableItemList = new ConsumableItemList(getConsumeSTB(), statusSTB.get());
 	
 	clock_t duration = clock() - timeStart;
 	logger.logInfo("Finished loading STBs including translations in ",duration,"ms!");
@@ -194,6 +204,16 @@ void WorldServer::loadZONFiles() {
 			restorePoints.push_back(new RestorePoint(static_cast<uint32_t>(restorePoints.size()), i, rawRestorePoint));
 		}
 		zoneFiles.insert(std::move(pair));
+	}
+}
+
+void WorldServer::loadQuests() {
+	auto questListingSTB = new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_QUESTDATA.STB");
+	for (auto pair : questListingSTB->getAllEntries()) {
+		std::string qsdPath = std::string("D:\\Games\\ROSE Server\\VFS_Extrator\\") + std::string(pair.second->getColumnData(0));
+		QSDFile file(qsdPath.c_str());
+		auto currentQsdRecords = file.getAllRecords();
+		questRecords.insert(currentQsdRecords.begin(), currentQsdRecords.end());
 	}
 }
 
@@ -405,7 +425,9 @@ bool WorldServer::loadInventoryForCharacter(Player* player) {
 			Item itemToAssign;
 			if (itemType != ItemTypeList::MONEY) {
 				itemToAssign = Item(itemType, itemId, itemAmount);
+				itemToAssign.setCategoryId(getEquipmentSTB(itemType.getTypeId())->getEquipmentType(itemId));
 				inventory->setItem(currentRow->getColumnDataAsInt(3), itemToAssign);
+
 			}
 			else {
 				inventory->setMoney(itemAmount);
@@ -569,7 +591,7 @@ ZMO* WorldServer::getAttackAnimationForNpc(NPC* npc) const {
 bool WorldServer::addDropFromNPC(NPC* monster, int16_t levelDifferenceToKiller) {
 	Drop* drop = nullptr;
 	uint16_t levelDiffbalanced = (std::min)((std::max)(static_cast<int16_t>(0), levelDifferenceToKiller), static_cast<int16_t>(10));
-	NumericRandomizer<uint16_t> randomizer(0, 100);
+	WeightedNumericRandomizer<uint16_t> randomizer(0, 100);
 	Position pos = PositionProcessor::generateRandomPointAroundPosition(monster->getLocationData()->getMapPosition()->getCurrentPosition(), 200.0f);
 	uint16_t drawnValue = randomizer.generateRandomValue();
 	logger.logDebug("Chance to drop money: ", monster->getDefaultStatValues()->getDefaultMoneyDropChance(), "%. Drawn random value: ", drawnValue);
@@ -585,9 +607,11 @@ bool WorldServer::addDropFromNPC(NPC* monster, int16_t levelDifferenceToKiller) 
 			dropRowId = monster->getDefaultStatValues()->getDropTableRowId();
 		}
 		randomizer.setNewBoundries(0, 30);
+		randomizer.setNewWeights(std::move(std::vector<double>{1.0, 0.85}));
 		uint16_t columnId = randomizer.generateRandomValue();
 		Item dropItem = generateDrop(dropRowId, columnId);
 		if (dropItem.isValid()) {
+			dropItem.setCategoryId(getEquipmentSTB(dropItem.getType())->getEquipmentType(dropItem.getId()));
 			drop = new Drop(dropItem, pos);
 		}
 	}
@@ -603,30 +627,30 @@ bool WorldServer::addDropFromNPC(NPC* monster, int16_t levelDifferenceToKiller) 
 Item WorldServer::generateDrop(const uint16_t dropRowId, const uint16_t column) const {
 	auto dropRowEntry = dropSTB->getEntry(dropRowId);
 	uint32_t itemId = dropRowEntry->getColumnDataAsInt(column);
-	NumericRandomizer<uint8_t> randomizer(0, 5);
+	WeightedNumericRandomizer<uint8_t> randomizer(0, 5);
 	if (itemId <= 1000) {
 		if (itemId > 0 && itemId < 5) {
-			randomizer.setNewBoundries(5, itemId * 10);
+			randomizer.setBoundriesAndWeights(4, itemId * 6, std::vector<double>{1.0, 0.8f, 0.35f});
 			uint16_t offset = 26 + randomizer.generateRandomValue();
 			if (offset >= dropRowEntry->getColumnAmount()) {
+				logger.logWarn("Droptable offset for generating drop is out of bounds: ", offset, ". Maximum allowed: ", dropRowEntry->getColumnAmount());
 				return Item();
 			}
 			itemId = dropRowEntry->getColumnDataAsInt(offset);
-		} else {
-			return Item();
 		}
 	}
 	if (itemId <= 1000) {
 		return Item();
 	}
 	Item dropItem(ItemTypeList::toItemType(itemId / 1000), itemId % 1000);
+	EquipmentSTB *stbFile = (EquipmentSTB*)equipmentSTBs.get()[dropItem.getType().getTypeId()];
+	uint32_t quality = stbFile->getQualityOfEntry(dropItem.getId());
 	if (dropItem.isStackable()) {
-		randomizer.setNewBoundries(0, 5);
-		dropItem.setAmount(randomizer.generateRandomValue() + 1);
+		randomizer.setBoundriesAndWeights(1, 5, { 1.0, (120.0 / (double)quality) / 7.5 });
+		dropItem.setAmount(randomizer.generateRandomValue());
 	}
 	else {
-		EquipmentSTB *stbFile = (EquipmentSTB*)equipmentSTBs.get()[dropItem.getType().getTypeId()];
-		randomizer.setNewBoundries(35, stbFile->getQualityOfEntry(dropItem.getId()) + 30);
+		randomizer.setBoundriesAndWeights(35, quality + 30, std::vector<double>{35.0, (double)quality});
 		dropItem.setDurability(randomizer.generateRandomValue());
 	}
 	return dropItem;

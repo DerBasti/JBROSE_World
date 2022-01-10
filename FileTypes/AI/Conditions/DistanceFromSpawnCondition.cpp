@@ -5,7 +5,7 @@ DistanceFromSpawnCondition::DistanceFromSpawnCondition(std::shared_ptr<char>& ra
 	LoadedDataReader interpreter(rawData.get());
 	interpreter.skipBytes(AIDataBlock::DEFAULT_HEADER_LENGTH);
 	allowedMaximumDistance = interpreter.readUInt() * 100.0f;
-	operation = interpreter.readByte() == 0 ? OperationType::BIGGER_EQUAL : OperationType::SMALLER_EQUAL;
+	operation = interpreter.readByte() == 0 ? CheckOperationType::BIGGER_EQUAL : CheckOperationType::SMALLER_EQUAL;
 }
 
 DistanceFromSpawnCondition::~DistanceFromSpawnCondition() {

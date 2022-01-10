@@ -11,14 +11,15 @@ public:
 	const static uint16_t MAXIMUM_AMOUNT_PER_STACK = 999;
 	const static uint8_t INVALID_SLOT = -1;
 private:
-	uint32_t money;
 	Item inventorySlots[MAX_SLOTS];
 	uint8_t weightPercentage;
 
 	uint8_t findItemSlotForStacking(const Item& itemToStack, uint8_t tabId);
 	uint8_t findEmptyItemSlot(uint8_t tabId);
+
 public:
 	Inventory() {
+		inventorySlots[0] = MoneyItem(0);
 	}
 	virtual ~Inventory() {}
 
@@ -32,19 +33,19 @@ public:
 	uint16_t getTotalWeight() const;
 
 	__inline uint32_t getMoneyAmount() const {
-		return money;
+		return inventorySlots[0].getAmount();
 	}
 
 	__inline void addMoney(uint32_t additionalMoney) {
-		money += additionalMoney;
+		inventorySlots[0].addAmount(additionalMoney);
 	}
 
 	__inline void decreaseMoney(uint32_t moneyAmount) {
-		money -= moneyAmount;
+		inventorySlots[0].setAmount(inventorySlots[0].getAmount() - moneyAmount);
 	}
 
 	__inline void setMoney(uint32_t money) {
-		this->money = money;
+		inventorySlots[0].setAmount(money);
 	}
 
 	__inline Item& getItem(uint8_t slot) {
@@ -57,6 +58,9 @@ public:
 
 	__inline void clearItem(const uint8_t slot) {
 		inventorySlots[slot] = Item();
+	}
+	__inline bool isValidSlot(const uint8_t slot) {
+		return slot >= 0 && slot < MAX_SLOTS;
 	}
 };
 

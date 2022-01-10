@@ -20,5 +20,6 @@
 #include "Requests/ShowMonsterHpRequestPacket.h"
 #include "Requests/StanceRequestPacket.h"
 #include "Requests/TelegateRequestPacket.h"
+#include "Requests/UseConsumableRequestPacket.h"
 
 #endif //__REQUEST_PACKETS_WORLDSERVER__

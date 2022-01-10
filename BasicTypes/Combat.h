@@ -133,6 +133,7 @@ public:
 	__inline void restart() {
 		stoppedFlag = softstopFlag = false;
 		setTimestampToCurrentTimepoint();
+
 	}
 	virtual uint64_t updateTimestamp() {
 		if (isStopped()) {
@@ -142,7 +143,10 @@ public:
 		if (isSoftStopped() && timePassed >= getDurationForWrappingInMillis()) {
 			stoppedFlag = true;
 		}
-		return CombatTimer::updateTimestamp();
+		CombatTimer::updateTimestamp();
+		if (isStopped()) {
+			onTimeWrap();
+		}
 	}
 };
 
@@ -202,7 +206,7 @@ std::wostream& operator<<(std::wostream& out, const CombatTypeId& type);
 class Combat {
 private:
 	class Entity *owner;
-	class Entity *target;
+	class Entity* target;
 	class ZMO* attackAnimation;
 	std::map<uint16_t, class Entity*> targetedByMap;
 	CombatType combatType;
@@ -217,6 +221,20 @@ private:
 
 	void addToTargetedByList(Entity* entity);
 	void removeFromTargetedByList(Entity* entity);
+
+	bool isBowEquipped() const;
+	bool isBowReadyForAttack() const;
+	bool isBowEquippedAndReadyForAttack() const;
+
+	bool isLauncherEquipped() const;
+	bool isLauncherReadyForAttack() const;
+	bool isLauncherEquippedAndReadyForAttack() const;
+
+	bool isGunEquipped() const;
+	bool isGunReadyForAttack() const;
+	bool isGunEquippedAndReadyForAttack() const;
+
+	bool isWeaponAbleToAttack() const;
 public:
 	Combat(Entity* combatOwner);
 	virtual ~Combat();
@@ -228,6 +246,7 @@ public:
 
 	DamageHit doBasicAttack();
 	bool isTargetInReach() const;
+	bool isAttackingEnemy() const;
 	void onMovementUpdate();
 	void onAttackspeedUpdate();
 	void onTargetReached();
@@ -260,7 +279,6 @@ public:
 
 
 	__inline bool isAttackRunning() {
-		attackTimer.updateTimestamp();
 		return attackTimer.isRunning();
 	}
 

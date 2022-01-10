@@ -7,7 +7,7 @@
 class DistanceFromSpawnCondition : public AICondition {
 private:
 	float allowedMaximumDistance;
-	OperationType operation;
+	CheckOperationType operation;
 public:
 	DistanceFromSpawnCondition(std::shared_ptr<char>& datablock);
 	virtual ~DistanceFromSpawnCondition();

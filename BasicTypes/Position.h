@@ -33,6 +33,10 @@ public:
 		return !(operator==(other));
 	}
 
+	__inline float toLength() const {
+		return ::sqrtf((getX() * getX()) + (getY() * getY()));
+	}
+
 	__inline float getX() const {
 		return x;
 	}

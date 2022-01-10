@@ -7,7 +7,7 @@
 class CheckDistanceToTargetCondition : public AICondition {
 private:
 	uint32_t neededDistance;
-	OperationType operation;
+	CheckOperationType operation;
 public:
 	CheckDistanceToTargetCondition(std::shared_ptr<char>& datablock);
 	CheckDistanceToTargetCondition(uint32_t operationCode, uint32_t length, const char* contextData);

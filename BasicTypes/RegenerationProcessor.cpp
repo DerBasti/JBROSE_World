@@ -1,6 +1,5 @@
 #include "RegenerationProcessor.h"
 #include "../WorldClient.h"
-#include "../FileTypes/STB.h"
 
 RegenerationProcessor::RegenerationProcessor(Player* player) {
 	this->player = player;
@@ -19,8 +18,60 @@ void RegenerationProcessor::checkRegeneration() {
 	checkRegenerationFromNaturalHealing();
 }
 
-void RegenerationProcessor::checkRegenerationFromItems() {
+bool RegenerationProcessor::addConsumedItem(std::unique_ptr<ConsumedItem>& newItem) {
+	bool allowedToBeAdded = true;
+	switch (newItem->getInfluencedAbilityType()) {
+		case EntityAbilityTypeId::CURRENT_HP:
+			allowedToBeAdded = player->getStats()->getCurrentHp() < player->getStats()->getMaxHp();
+		break;
+		case EntityAbilityTypeId::CURRENT_MP:
+			allowedToBeAdded = player->getStats()->getCurrentMp() < player->getStats()->getMaxMp();
+	}
+	if (!allowedToBeAdded) {
+		return false;
+	}
+	std::lock_guard<std::mutex> lockGuard(mutex);
+	consumedItems.push_back(std::move(newItem));
+	return true;
+}
 
+template<class _StatType>
+void RegenerationProcessor::executeConsumableScript(_StatType(PlayerStats::*getFunction)() const, void (PlayerStats::*setFunction)(const _StatType newValue), _StatType valueToUse, ResultOperationType resultOperation) {
+	auto playerStats = player->getStats();
+	_StatType value = (playerStats->*getFunction)();
+	_StatType result = OperationHandler::executeResultOperation(value, valueToUse, resultOperation);
+	(playerStats->*setFunction)(result);
+}
+
+template<class _StatType>
+void RegenerationProcessor::executeConsumableScript(_StatType(EntityStats::*getFunction)() const, void (EntityStats::*setFunction)(const _StatType newValue), _StatType valueToUse, ResultOperationType resultOperation) {
+	auto playerStats = dynamic_cast<EntityStats*>(player->getStats());
+	_StatType value = (playerStats->*getFunction)();
+	_StatType result = OperationHandler::executeResultOperation(value, valueToUse, resultOperation);
+	(playerStats->*setFunction)(result);
+}
+
+void RegenerationProcessor::checkRegenerationFromItems() {
+	auto it = consumedItems.begin();
+	while(it != consumedItems.end()) {
+		uint32_t amount = (*it)->updateUsageValue();
+		if (amount > 0) {
+			switch ((*it)->getInfluencedAbilityType()) {
+				case EntityAbilityTypeId::CURRENT_HP:
+					executeConsumableScript<uint32_t>(&PlayerStats::getCurrentHp, &PlayerStats::setCurrentHp, amount, ResultOperationType::ADDITION);
+				break;
+				case EntityAbilityTypeId::CURRENT_MP:
+					executeConsumableScript<uint32_t>(&PlayerStats::getCurrentMp, &PlayerStats::setCurrentMp, amount, ResultOperationType::ADDITION);
+				break;
+			}
+		}
+		if ((*it)->isFullyUsed()) {
+			it = consumedItems.erase(it);
+			logger.logDebug("Item fully consumed. Deleting...");
+			continue;
+		}
+		++it;
+	}
 }
 
 void RegenerationProcessor::checkRegenerationFromNaturalHealing() {
@@ -42,39 +93,3 @@ void RegenerationProcessor::checkRegenerationFromNaturalHealing() {
 
 	naturalHealTimer.updateTimestamp();
 }
-
-ConsumedItem::ConsumedItem() {
-	abilityType = 0;
-	alreadyConsumedValue = 0;
-	maximumValue = 0;
-	scriptExecutionType = 0;
-	valuePerSecond = 0;
-}
-
-ConsumedItem::ConsumedItem(STBEntry* consumableEntry, StatusSTBFile* statusEntry) {
-	//entry->getColumnDataAsInt(ConsumeSTBFile::STAT_AMOUNT_REQUIRED_COLUMN);
-	//entry->getColumnDataAsInt(ConsumeSTBFile::STAT_TYPE_REQUIRED_COLUMN);
-	alreadyConsumedValue = 0;
-	abilityType = consumableEntry->getColumnDataAsInt(ConsumeSTBFile::STAT_TYPE_TO_ADD_TO_COLUMN);
-	maximumValue = consumableEntry->getColumnDataAsInt(ConsumeSTBFile::STAT_AMOUNT_TO_ADD_TO_COLUMN);
-	scriptExecutionType = consumableEntry->getColumnDataAsInt(ConsumeSTBFile::SCRIPT_EXECUTION_TYPE_COLUMN);
-	valuePerSecond = statusEntry->getIncreaseOfFirstValueOfEntry(consumableEntry->getColumnDataAsInt(ConsumeSTBFile::STATUS_STB_REFERENCE_COLUMN));
-}
-
-ConsumedItem::~ConsumedItem() {
-
-}
-
-void ConsumableItemList::loadListFromStb(const ConsumeSTBFile* consumablesSTBFile) {
-
-}
-
-ConsumedItem ConsumableItemList::createConsumable(const uint16_t itemId) {
-	auto iterator = itemList.find(itemId);
-	if (iterator != itemList.end()) {
-		return iterator->second;
-	}
-	return ConsumedItem();
-}
-
-std::map<uint16_t, ConsumedItem> ConsumableItemList::itemList;

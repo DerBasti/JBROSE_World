@@ -14,6 +14,6 @@ void UpdateMoneyResponsePacket::appendContentToSendable(SendablePacket& sendable
 
 std::string UpdateMoneyResponsePacket::toPrintable() const {
 	char buf[0x70] = { 0x00 };
-	sprintf_s(buf, "[UpdateMoneyResponsePacket]\n\t* Total amount of money: %u", currentMoney);
+	sprintf_s(buf, "[UpdateMoneyResponsePacket]\n\t* Total amount of money: %llu", currentMoney);
 	return std::string(buf);
 }

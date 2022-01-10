@@ -7,7 +7,8 @@
 enum class PositionUpdateResult : uint16_t {
 	IDLE = 0,
 	IS_MOVING,
-	TARGET_REACHED
+	TARGET_REACHED,
+	COMBAT_TARGET_REACHED
 };
 
 class PositionProcessor {
@@ -29,7 +30,6 @@ public:
 	virtual ~PositionProcessor();
 
 	virtual void onNewDestination() {
-		timer.updateTimestamp();
 	}
 
 	PositionUpdateResult processNewPosition();

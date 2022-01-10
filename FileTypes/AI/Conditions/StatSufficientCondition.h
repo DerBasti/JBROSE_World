@@ -6,9 +6,9 @@
 
 class StatSufficientCondition : public AICondition {
 private:
-	AbilityType abilityType;
+	AIPAbilityType abilityType;
 	uint32_t abilityAmountNecessary;
-	OperationType operation;
+	CheckOperationType operation;
 public:
 	StatSufficientCondition(std::shared_ptr<char>& rawData);
 	virtual ~StatSufficientCondition();

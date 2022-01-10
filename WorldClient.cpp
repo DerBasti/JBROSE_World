@@ -88,63 +88,39 @@ void Player::onDamageReceived(Entity* attacker, uint32_t damageAmount) {
 	logger.logDebug(getName(), "(#", getLocationData()->getLocalId(), ") received ", damageAmount, " damage from ", attacker->getName(), ".");
 }
 
+PlayerPacketHandler::PlayerPacketHandler(std::shared_ptr<ROSEClient>& networkConnection) {
+	this->networkConnection = networkConnection;
+
+	this->handleMethods.insert(std::make_pair(AssignLocalPlayerIdRequestPacket::ID, &PlayerPacketHandler::handleAssignmentOfLocalId));
+	this->handleMethods.insert(std::make_pair(ChangeEquipmentRequestPacket::ID, &PlayerPacketHandler::handleChangedEquipment));
+	this->handleMethods.insert(std::make_pair(ChangeRespawnTownRequestPacket::ID, &PlayerPacketHandler::handleChangedRespawnTown));
+	this->handleMethods.insert(std::make_pair(CollisionRequestPacket::ID, &PlayerPacketHandler::handleCollision));
+	this->handleMethods.insert(std::make_pair(CloseShopRequestPacket::ID, &PlayerPacketHandler::handleShopClose));
+	this->handleMethods.insert(std::make_pair(CurrentWeightRequestPacket::ID, &PlayerPacketHandler::handleWeightChange));
+	this->handleMethods.insert(std::make_pair(DistributeStatPointRequestPacket::ID, &PlayerPacketHandler::handleDistributionOfStatPoint));
+	this->handleMethods.insert(std::make_pair(DropItemFromInventoryRequestPacket::ID, &PlayerPacketHandler::handleDropFromInventory));
+	this->handleMethods.insert(std::make_pair(ExitRequestPacket::ID, &PlayerPacketHandler::handleExit));
+	this->handleMethods.insert(std::make_pair(IdentifyAccountRequestPacket::ID, &PlayerPacketHandler::handleIdentification));
+	this->handleMethods.insert(std::make_pair(InitBasicAttackRequestPacket::ID, &PlayerPacketHandler::handleInitBasicAttack));
+	this->handleMethods.insert(std::make_pair(NewDestinationRequestPacket::ID, &PlayerPacketHandler::handleNewDestination));
+	this->handleMethods.insert(std::make_pair(PickupDropRequestPacket::ID, &PlayerPacketHandler::handlePickupDrop));
+	this->handleMethods.insert(std::make_pair(PingRequestPacket::ID, &PlayerPacketHandler::handleEmptyPacket));
+	this->handleMethods.insert(std::make_pair(ShowMonsterHpRequestPacket::ID, &PlayerPacketHandler::handleShowMonsterHp));
+	this->handleMethods.insert(std::make_pair(StanceRequestPacket::ID, &PlayerPacketHandler::handleStanceChange));
+	this->handleMethods.insert(std::make_pair(TelegateRequestPacket::ID, &PlayerPacketHandler::handleTelegateEntered));
+	this->handleMethods.insert(std::make_pair(UseConsumableRequestPacket::ID, &PlayerPacketHandler::handleUseConsumableItem));
+}
+
 bool PlayerPacketHandler::handlePacket(Player* player, const Packet* packet) {
 	//Add new Packets to WorldServerPacketFactory
 	bool success = false;
-	switch (packet->getCommandId()) {
-		case AssignLocalPlayerIdRequestPacket::ID:
-			success = handleAssignmentOfLocalId(player, packet);
-		break;
-		case ChangeEquipmentRequestPacket::ID:
-			success = handleChangedEquipment(player, packet);
-		break;
-		case ChangeRespawnTownRequestPacket::ID:
-			success = handleChangedRespawnTown(player, packet);
-		break;
-		case CollisionRequestPacket::ID:
-			success = handleCollision(player, packet);
-		break;
-		case CloseShopRequestPacket::ID:
-			success = handleShopClose(player, packet);
-		break;
-		case CurrentWeightRequestPacket::ID:
-			success = handleWeightChange(player, packet);
-		break;
-		case DistributeStatPointRequestPacket::ID:
-			success = handleDistributionOfStatPoint(player, packet);
-		break;
-		case DropItemFromInventoryRequestPacket::ID:
-			success = handleDropFromInventory(player, packet);
-		break;
-		case ExitRequestPacket::ID:
-			success = handleExit(player, packet);
-		break;
-		case IdentifyAccountRequestPacket::ID:
-			success = handleIdentification(player, packet);
-		break;
-		case InitBasicAttackRequestPacket::ID:
-			success = handleInitBasicAttack(player, packet);
-		break;
-		case NewDestinationRequestPacket::ID:
-			success = handleNewDestination(player, packet);
-		break;
-		case PickupDropRequestPacket::ID:
-			success = handlePickupDrop(player, packet);
-		break;
-		case PingRequestPacket::ID:
-			success = true;
-		break;
-		case ShowMonsterHpRequestPacket::ID:
-			success = handleShowMonsterHp(player, packet);
-		break;
-		case StanceRequestPacket::ID:
-			success = handleStanceChange(player, packet);
-		break;
-		case TelegateRequestPacket::ID:
-			success = handleTelegateEntered(player, packet);
-		break;
-		default:
-			logger.logWarn("Unknown Packet: ", packet->toPrintable().c_str());
+	auto it = handleMethods.find(packet->getCommandId());
+	if (it != handleMethods.end()) {
+		auto method = it->second;
+		success = (this->*method)(player, packet);
+	}
+	else {
+		logger.logWarn("Unknown Packet: ", packet->toPrintable().c_str());
 	}
 	return success;
 }
@@ -159,18 +135,25 @@ void Player::addExperience(uint32_t expGained) {
 		logger.logTrace("Levelup detected.");
 		do {
 			uint32_t levelupExp = getExperienceForLevelup();
-			handleLevelup();
 			playerStats->setExperiencePoints(playerStats->getExperiencePoints() - levelupExp);
+			handleLevelup();
 			hasLevelup = playerStats->getExperiencePoints() >= getExperienceForLevelup();
 		} while (hasLevelup);
 	}
-	UpdateExperienceResponsePacket packet(this);
-	getPacketHandler()->sendDataToClient(packet);
+	else {
+		UpdateExperienceResponsePacket packet(this);
+		getPacketHandler()->sendDataToClient(packet);
+	}
 }
 
 bool Player::handleLevelup() {
 	PlayerStats* stats = getStats();
 	stats->addLevel();
+
+	updateCombatValues();
+	stats->setCurrentHp(stats->getMaxHp());
+	stats->setCurrentMp(stats->getMaxMp());
+
 	stats->addAvailableStatPoints((getStats()->getLevel() * 10 / 8) + 10);
 	uint16_t currentLevel = getStats()->getLevel();
 	if(currentLevel == 10 || currentLevel == 14) {
@@ -373,6 +356,47 @@ bool PlayerPacketHandler::handleTelegateEntered(Player* player, const Packet* pa
 
 	WorldServer *server = WorldServer::getInstance();
 	return server->teleportPlayerFromTelegate(player, telegateId);
+}
+
+bool PlayerPacketHandler::handleUseConsumableItem(Player* player, const Packet* packet) {
+	const UseConsumableRequestPacket* usePacket = dynamic_cast<const UseConsumableRequestPacket*>(packet);
+	if (!player->getInventory()->isValidSlot(usePacket->getInventorySlot())) {
+		logger.logWarn("Invalid UseItem-Slot: ", usePacket->getInventorySlot());
+		return false;
+	}
+	const Item& item = player->getInventory()->getItem(usePacket->getInventorySlot());
+	if (item.getType() != ItemTypeList::CONSUMABLE) {
+		logger.logWarn("Invalid ItemType for UseItem is '", item.getType().getTypeName(), "'! [Player: ", player->getName(), ", Slot: ", usePacket->getInventorySlot(), "].");
+		return false;
+	}
+	auto consumable = WorldServer::getInstance()->getConsumableItemList()->createConsumable(item.getId());
+	bool consumeSuccessful = true;
+	switch (consumable->getExecutionType()) {
+		case ConsumableExecutionType::FOOD:
+			consumeSuccessful = player->getRegenerationProcessor()->addConsumedItem(consumable);
+		break;
+		case ConsumableExecutionType::IMMEDIATE_APPLICATION:
+
+		break;
+		case ConsumableExecutionType::REPAIR_HAMMER:
+		break;
+		case ConsumableExecutionType::LEARN_SKILL:
+
+		break;
+	}
+	if (!consumeSuccessful) {
+		return true;
+	}
+	UseConsumableResponsePacket response(player->getLocationData()->getLocalId(), item.getId());
+	player->sendDataToVisibleEntities(response);
+
+	response.setInventorySlotId(usePacket->getInventorySlot());
+	player->sendDataToSelf(response);
+	return true;
+}
+
+bool PlayerPacketHandler::handleEmptyPacket(Player* player, const Packet* packet) {
+	return true;
 }
 
 bool PlayerPacketHandler::handleShopClose(Player* player, const Packet* packet) {

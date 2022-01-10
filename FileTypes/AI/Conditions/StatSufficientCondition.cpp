@@ -6,9 +6,9 @@ StatSufficientCondition::StatSufficientCondition(std::shared_ptr<char>& rawData)
 	LoadedDataReader interpreter(rawData.get());
 	interpreter.skipBytes(AIDataBlock::DEFAULT_HEADER_LENGTH);
 
-	abilityType = OperationHandler::fromAbilityTypeId(interpreter.readUInt());
+	abilityType = OperationHandler::fromAIPAbilityTypeId(interpreter.readUInt());
 	abilityAmountNecessary = interpreter.readUInt();
-	operation = interpreter.readByte() == 0 ? OperationType::BIGGER_EQUAL : OperationType::SMALLER_EQUAL;
+	operation = interpreter.readByte() == 0 ? CheckOperationType::BIGGER_EQUAL : CheckOperationType::SMALLER_EQUAL;
 }
 
 StatSufficientCondition::~StatSufficientCondition() {
@@ -20,6 +20,6 @@ bool StatSufficientCondition::isFulfilled(AIContext& context) {
 	if (sourceNpc->getCombat()->getTarget() != nullptr || context.getDesignatedTarget() == nullptr) {
 		return false;
 	}
-	uint16_t foundAbilityAmount = OperationHandler::getAbilityValueOfEntity(context.getDesignatedTarget(), abilityType);
+	uint16_t foundAbilityAmount = OperationHandler::getAIPAbilityValueOfEntity(context.getDesignatedTarget(), abilityType);
 	return OperationHandler::executeCheckOperation(foundAbilityAmount, abilityAmountNecessary, operation);
 }

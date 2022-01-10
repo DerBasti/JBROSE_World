@@ -184,7 +184,7 @@ public:
 	}
 };
 
-class ConsumeSTBFile : public STBFile {
+class ConsumeSTBFile : public EquipmentSTB {
 private:
 	__inline uint16_t getValueOfEntry(uint16_t id, uint16_t type) const {
 		return static_cast<uint16_t>(getEntry(id)->getColumnDataAsInt(type));
@@ -202,7 +202,7 @@ public:
 	const static uint16_t STAT_AMOUNT_TO_ADD_TO_COLUMN = 0x14;
 	const static uint16_t STATUS_STB_REFERENCE_COLUMN = 0x18;
 
-	ConsumeSTBFile(const char *filePath) : STBFile(filePath) {}
+	ConsumeSTBFile(const char *filePath) : EquipmentSTB(filePath) {}
 	virtual ~ConsumeSTBFile() {}
 
 	__inline uint16_t getWeightOfEntry(uint16_t id) const {

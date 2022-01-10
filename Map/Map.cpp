@@ -18,6 +18,7 @@ Map::Map(const uint16_t id, const char* mapName, ZONFile* zoneFile, ZoneSTBFile*
 	this->id = id;
 	this->mapName = mapName;
 	mapTime = MapTime(stbFile, id);
+	localIdRandomizer.setNewBoundries(0, 0xFFFF);
 	for (uint16_t i = 0; i < SECTORS_PER_AXIS*SECTORS_PER_AXIS; i++) {
 		float x = SECTORS_START_COORDINATE + ((i % SECTORS_PER_AXIS) * SECTORS_SIZE);
 		float y = SECTORS_START_COORDINATE + ((i / SECTORS_PER_AXIS) * SECTORS_SIZE);
@@ -45,7 +46,7 @@ bool Map::assignNewLocalId(Entity* entity) {
 	uint16_t id = 0;
 	bool isInUse = false;
 	bool emptyIdFound = false;
-	uint16_t attempts = 10000;
+	uint16_t attempts = 1000;
 	do {
 		id = rand() % 0x10000;
 		isInUse = localIds[id];
@@ -84,7 +85,6 @@ void Map::updateMapTime() {
 	mapTime.getCurrentDayTimeType();
 }
 
-
 Position Map::getDefaultRespawnPoint() {
 	for (auto restorePoint : this->restorePoints) {
 		if (_stricmp(restorePoint->getName(), RestorePoint::DEFAULT_RESTORE_POINT_NAME) == 0) {
@@ -94,6 +94,7 @@ Position Map::getDefaultRespawnPoint() {
 	logger.logWarn("No default respawn found for map: ", getName());
 	return Position(520000.0f, 520000.0f);
 }
+
 void Map::addRestorePoints(std::vector<RestorePoint*> restorePoints) {
 	logger.logTrace("Adding restore points...");
 	for (auto point : restorePoints) {
@@ -220,10 +221,15 @@ void Map::updateEntities() {
 				entity->onMoving();
 			break;
 			case PositionUpdateResult::TARGET_REACHED:
+				//nothing to do
+			break;
+			case PositionUpdateResult::COMBAT_TARGET_REACHED:
 				if (entity->getCombat()->getTarget() != nullptr && !entity->getCombat()->isAttackRunning()) {
 					entity->getCombat()->onTargetReached();
 				}
-				entity->getCombat()->refresh();
+				if (entity->getCombat()->isAttackRunning()) {
+					entity->getCombat()->refresh();
+				}
 			break;
 		}
 		entity->onUpdate();

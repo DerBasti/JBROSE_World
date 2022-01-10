@@ -40,13 +40,8 @@ public:
 	virtual ~MonsterRecoveryPoint();
 
 	void checkForNewSpawns();
+	Position getRandomPositionFromSpawn();
 
-	__inline Position getRandomPositionFromSpawn() {
-		Position pos(spawnInformation->getPosition());
-		pos.setX(pos.getX() + randomizer.generateRandomValue());
-		pos.setY(pos.getY() + randomizer.generateRandomValue());
-		return pos;
-	}
 	__inline void removeFromActivelySpawned(const uint16_t monsterLocalId) {
 		monstersSpawned.erase(monsterLocalId);
 	}

@@ -20,6 +20,7 @@ private:
 	std::unordered_map<std::shared_ptr<ROSEClient>, Player*> worldClientList;
 	std::unordered_map<uint16_t, Telegate*> telegates;
 	std::unordered_map<uint32_t, ZMO*> attackAnimations;
+	std::map<uint32_t, std::shared_ptr<class QuestRecord>> questRecords;
 	std::map<uint32_t, ZONFile*> zoneFiles;
 	std::vector<RestorePoint*> restorePoints;
 	CHRFile *npcAnimationFile;
@@ -32,9 +33,10 @@ private:
 	std::shared_ptr<STBFile> warpSTB;
 	std::shared_ptr<STBFile> dropSTB;
 	std::shared_ptr<ZoneSTBFile> zoneSTB;
-	std::shared_ptr<StatusSTBFile*> statusSTB;
-	std::shared_ptr<STBFile*> equipmentSTBs;
+	std::shared_ptr<StatusSTBFile> statusSTB;
+	std::shared_ptr<EquipmentSTB*> equipmentSTBs;
 	std::shared_ptr<STBFile> motionTypesSTB;
+	ConsumableItemList* consumableItemList;
 
 	Player* findWorldClientByInterface(std::shared_ptr<ROSEClient>& client) const;
 
@@ -43,6 +45,7 @@ private:
 	void loadNpcDefaultValues();
 	void createMaps();
 	void loadZONFiles();
+	void loadQuests();
 	void loadAttackAnimationTimings();
 	void loadIFOData(Map* map, DirectoryParser& parser);
 	void loadMonsters(Map* map, const class IFOFile& file);
@@ -82,12 +85,12 @@ public:
 	bool teleportPlayerFromTelegate(Player* player, const uint16_t telegateId);
 
 	bool addDropFromNPC(NPC* monster, int16_t levelDifferenceToKiller);
-	
+
 	__inline static WorldServer* getInstance() {
 		return ROSEServer::getInstance<WorldServer>();
 	}
 	__inline const EquipmentSTB* getEquipmentSTB(uint8_t itemType) const {
-		return (itemType != ItemTypeList::CONSUMABLE.getTypeId() ? dynamic_cast<const EquipmentSTB*>(equipmentSTBs.get()[itemType]) : nullptr);
+		return equipmentSTBs.get()[itemType];
 	}
 	__inline const ConsumeSTBFile* getConsumeSTB() const {
 		return dynamic_cast<const ConsumeSTBFile*>(equipmentSTBs.get()[ItemTypeList::CONSUMABLE.getTypeId()]);
@@ -97,6 +100,10 @@ public:
 	}
 	ZMO* getAttackAnimationForPlayer(Player* player) const;
 	ZMO* getAttackAnimationForNpc(NPC* npc) const;
+
+	__inline ConsumableItemList* getConsumableItemList() const {
+		return consumableItemList;
+	}
 };
 
 #endif //__ROSE_WORLDSERVER__

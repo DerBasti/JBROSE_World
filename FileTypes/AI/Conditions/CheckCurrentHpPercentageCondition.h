@@ -7,7 +7,7 @@
 class CheckCurrentHpPercentageCondition : public AICondition {
 private:
 	uint32_t hpInPercent;
-	OperationType operation;
+	CheckOperationType operation;
 public:
 	CheckCurrentHpPercentageCondition(std::shared_ptr<char>& datablock);
 	virtual ~CheckCurrentHpPercentageCondition();

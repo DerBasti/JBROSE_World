@@ -98,4 +98,61 @@ public:
 	}
 };
 
+class PlayerStats : public EntityStats {
+private:
+	uint32_t experiencePoints;
+	uint16_t stamina;
+	uint16_t availableStatPoints;
+	uint16_t availableSkillPoints;
+	uint16_t maximumWeight;
+public:
+	PlayerStats() {
+		availableStatPoints = availableSkillPoints = 0;
+		experiencePoints = 0;
+		stamina = 5000;
+		maximumWeight = 1100;
+	}
+	__inline void addExperience(const uint32_t expGained) {
+		setExperiencePoints(getExperiencePoints() + expGained);
+	}
+	__inline uint32_t getExperiencePoints() const {
+		return experiencePoints;
+	}
+	__inline void setExperiencePoints(const uint32_t experiencePoints) {
+		this->experiencePoints = experiencePoints;
+	}
+	__inline uint16_t getStamina() const {
+		return stamina;
+	}
+	__inline void setStamina(const uint16_t stamina) {
+		this->stamina = stamina;
+	}
+
+	__inline uint16_t getAvailableStatPoints() const {
+		return availableStatPoints;
+	}
+	__inline void setAvailableStatPoints(const uint16_t availableStatPoints) {
+		this->availableStatPoints = availableStatPoints;
+	}
+	__inline void addAvailableStatPoints(uint16_t additionalPoints) {
+		setAvailableStatPoints(getAvailableStatPoints() + additionalPoints);
+	}
+
+	__inline uint16_t getAvailableSkillPoints() const {
+		return availableSkillPoints;
+	}
+	__inline void setAvailableSkillPoints(const uint16_t availableSkillPoints) {
+		this->availableSkillPoints = availableSkillPoints;
+	}
+	__inline void addAvailableSkillPoints(uint16_t additionalPoints) {
+		setAvailableSkillPoints(getAvailableSkillPoints() + additionalPoints);
+	}
+	__inline uint16_t getMaximumPossibleWeight() const {
+		return maximumWeight;
+	}
+	__inline void setMaximumPossibleWeight(uint16_t newMaximum) {
+		maximumWeight = newMaximum;
+	}
+};
+
 #endif //

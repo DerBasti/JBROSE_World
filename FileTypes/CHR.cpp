@@ -66,7 +66,7 @@ void CHRFile::loadFileContent(FileReader& reader) {
 			uint16_t animationType = reader.readUShort();
 			uint16_t animationId = reader.readUShort();
 			if (animationType >= static_cast<uint16_t>(CHRMotionType::AMOUNT)) {
-				logger.logWarn("Animation type '", animationType, "' is not valid!");
+				logger.logDebug("Animation type '", animationType, "' is not valid!");
 				continue;
 			}
 			this->animationsTypedMap[animationType].emplace(i, animations.at(animationId));

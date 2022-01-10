@@ -5,6 +5,7 @@
 #include "../Map/Map.h"
 #include "../WorldPackets/Responses/BasicAttackResponsePacket.h"
 #include "../FileTypes/ZMO.h"
+#include "../WorldServer.h"
 #include <type_traits>
 
 const CombatType CombatType::NONE = CombatType(CombatTypeId::NONE);
@@ -25,6 +26,7 @@ Combat::Combat(Entity* owner) {
 	this->attackTimer.setDurationForWrappingInMillis(1200);
 	this->owner = owner;
 	target = nullptr;
+	combatType = CombatType::NONE;
 	teamId = 0;
 }
 
@@ -47,7 +49,7 @@ void Combat::onMovementUpdate() {
 }
 
 void Combat::onTargetReached() {
-	if (getTarget() != nullptr) {
+	if (getTarget() != nullptr && !getTarget()->isDrop()) {
 		attackTimer.restart();
 	}
 }
@@ -59,11 +61,26 @@ DamageHit Combat::doBasicAttack() {
 
 	int16_t damage = 20;
 	float ratio = attackPower / static_cast<float>(enemyDefense + attackPower + 1);
-	if (target->isPlayer()) {
+	if (getEntitySelf()->isPlayer() && target->isPlayer()) {
 		damage = attackPower * ratio - (enemyDefense * (1.1f - ratio));
 	}
 	else {
-		damage = attackPower * ratio;
+		//Minimum Attackpower: 2
+		//Minimum Defense: 5
+
+		//Maximum Attackpower: 2000
+		//Maximum Defense: 1500
+
+		//2 * (2 - 5 + 700) / ((5-5) * 40 = 5.903
+		//56 * (56 - 30 + 700) / ((30 / 8) = 13.01
+		//11 * (11 - 30 + 700) / ((30 / 8) = 5.58
+
+
+		//11 * 681 / (130 / 8) = sqrt(21.47) = 4,63 + 0,2
+		//56 * 726 / (130 / 8) = sqrt(50.01) = 7,07 + 5,6
+		//2000 * (2000 - 1500 + 700) / (1600 / 8) = 109,54 + 200
+
+		damage = (sqrtf(attackPower * (attackPower - enemyDefense + 700) / ((enemyDefense+100) / 8.0f)) + (attackPower * 0.1f)) / 2;
 	}
 	damage += randomizer.generateRandomValue();
 	if (damage < 5) {
@@ -93,7 +110,7 @@ bool Combat::isTargetInReach() const {
 	switch (getCombatType()) {
 		case CombatTypeId::NONE:
 			if (target->isDrop()) {
-				reach = 300;
+				reach = 250;
 			}
 		break;
 		case CombatTypeId::BASIC_ATTACK:
@@ -105,9 +122,13 @@ bool Combat::isTargetInReach() const {
 	return distance <= reach;
 }
 
+bool Combat::isAttackingEnemy() const {
+	auto entity = getTarget();
+	return entity != nullptr && !entity->isDrop() && !entity->isNPC() && !entity->isAlliedTo(getEntitySelf());
+}
+
 void Combat::clear() {
-	target = nullptr;
-	combatType = CombatType::NONE;
+	this->setTarget(nullptr, CombatType::NONE);
 	attackTimer.softStop();
 }
 
@@ -157,7 +178,7 @@ void Combat::setAttackRoutine(std::function<bool()> proc) {
 void Combat::setTarget(Entity* target, const CombatType& type) {
 	this->combatType = type;
 	if (this->target != nullptr) {
-		this->target->getCombat()->removeFromTargetedByList(owner);
+		this->target->getCombat()->removeFromTargetedByList(getEntitySelf());
 	}
 	this->target = target;
 	if (target != nullptr && type != CombatTypeId::NONE) {
@@ -166,11 +187,16 @@ void Combat::setTarget(Entity* target, const CombatType& type) {
 	switch (getCombatType()) {
 		case CombatTypeId::NONE:
 			setAttackRoutine(nullptr);
+			attackTimer.softStop();
+			attackTimer.updateTimestamp();
 		break;
 		case CombatTypeId::BASIC_ATTACK:
 		{
 			auto attackCallback = [this]() -> bool {
-				return this->owner->doAttack();
+				if (isWeaponAbleToAttack()) {
+					return this->owner->doAttack();
+				}
+				return true;
 			};
 			setAttackRoutine(attackCallback);
 		}
@@ -198,11 +224,98 @@ void Combat::removeFromTargetedByList(Entity* entity) {
 }
 
 void Combat::clearSelfFromTargetsCombat() {
-	for (auto pair : targetedByMap) {
-		pair.second->getCombat()->clear();
-		pair.second->getCombat()->removeFromTargetedByList(owner);
+	if (targetedByMap.empty()) {
+		return;
+	}
+	auto iterator = targetedByMap.begin();
+	while(iterator != targetedByMap.end()) {
+		Entity* currentTarget = iterator->second;
+		currentTarget->getCombat()->clear();
+		currentTarget->getLocationData()->getMapPosition()->setDestinationPositionToCurrentPosition();
+		iterator = targetedByMap.begin();
 	}
 	targetedByMap.clear();
+}
+
+
+bool Combat::isWeaponAbleToAttack() const {
+	if (!getEntitySelf()->isPlayer()) {
+		return true;
+	}
+	uint16_t typeId = dynamic_cast<Player*>(getEntitySelf())->getInventory()->getItem(ItemTypeList::WEAPON.getInventorySlotId()).getCategoryId();
+	switch (typeId) {
+		case WeaponType::RANGE_BOW:
+		case WeaponType::RANGE_CROSSBOW:
+			return isBowReadyForAttack();
+		case WeaponType::RANGE_LAUNCHER:
+			return isLauncherReadyForAttack();
+		case WeaponType::RANGE_GUN:
+		case WeaponType::RANGE_DUAL_GUN:
+			return isGunReadyForAttack();
+	}
+	return true;
+}
+
+bool Combat::isBowEquipped() const {
+	uint16_t typeId = dynamic_cast<Player*>(getEntitySelf())->getInventory()->getItem(ItemTypeList::WEAPON.getInventorySlotId()).getCategoryId();
+	switch (typeId) {
+		case WeaponType::RANGE_BOW:
+		case WeaponType::RANGE_CROSSBOW:
+			return true;
+	}
+	return false;
+}
+
+bool Combat::isBowReadyForAttack() const {
+	return dynamic_cast<Player*>(getEntitySelf())->getInventory()->getItem(InventorySlot::ARROWS).isValid();
+}
+
+bool Combat::isBowEquippedAndReadyForAttack() const {
+	if (isBowEquipped()) {
+		return isBowReadyForAttack();
+	}
+	return false;
+}
+
+bool Combat::isLauncherEquipped() const {
+	uint16_t typeId = dynamic_cast<Player*>(getEntitySelf())->getInventory()->getItem(ItemTypeList::WEAPON.getInventorySlotId()).getCategoryId();
+	switch (typeId) {
+		case WeaponType::RANGE_LAUNCHER:
+			return true;
+	}
+	return false;
+}
+
+bool Combat::isLauncherReadyForAttack() const {
+	return dynamic_cast<Player*>(getEntitySelf())->getInventory()->getItem(InventorySlot::CANNONSHELLS).isValid();
+}
+
+bool Combat::isLauncherEquippedAndReadyForAttack() const {
+	if (isLauncherEquipped()) {
+		return isLauncherReadyForAttack();
+	}
+	return false;
+}
+
+bool Combat::isGunEquipped() const {
+	uint16_t typeId = dynamic_cast<Player*>(getEntitySelf())->getInventory()->getItem(ItemTypeList::WEAPON.getInventorySlotId()).getCategoryId();
+	switch (typeId) {
+		case WeaponType::RANGE_GUN:
+		case WeaponType::RANGE_DUAL_GUN:
+			return true;
+	}
+	return false;
+}
+
+bool Combat::isGunReadyForAttack() const {
+	return dynamic_cast<Player*>(getEntitySelf())->getInventory()->getItem(InventorySlot::BULLETS).isValid();
+}
+
+bool Combat::isGunEquippedAndReadyForAttack() const {
+	if (isLauncherEquipped()) {
+		return isGunReadyForAttack();
+	}
+	return true;
 }
 
 std::ostream& operator<<(std::ostream& out, const CombatType& type) {

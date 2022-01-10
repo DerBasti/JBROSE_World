@@ -52,8 +52,8 @@ AIConditionFactory::AIConditionFunctionPointer AIConditionFactory::creatorFuncti
 
 std::shared_ptr<AICondition> AIConditionFactory::createConditionFromRawData(std::shared_ptr<char>& rawData) {
 	uint32_t* rawDataAsInt = reinterpret_cast<uint32_t*>(rawData.get());
-	uint32_t operationCode = rawDataAsInt[1];
+	uint32_t operationCode = rawDataAsInt[1] - 1;
 
-	auto result = creatorFunctions[operationCode - CONDITION_OPERATIONCODE_START](rawData);
+	auto result = creatorFunctions[operationCode & 0xFF](rawData);
 	return result;
 }

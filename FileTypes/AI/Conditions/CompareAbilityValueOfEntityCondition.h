@@ -6,8 +6,8 @@
 
 class CompareAbilityValueOfEntityCondition : public AICondition {
 private:
-	AbilityType abilityType;
-	OperationType operation;
+	AIPAbilityType abilityType;
+	CheckOperationType operation;
 public:
 	CompareAbilityValueOfEntityCondition(std::shared_ptr<char>& datablock);
 	virtual ~CompareAbilityValueOfEntityCondition() {}

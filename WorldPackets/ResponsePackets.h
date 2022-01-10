@@ -30,6 +30,7 @@
 #include "Responses/UpdateExperienceResponsePacket.h"
 #include "Responses/UpdateMoneyResponsePacket.h"
 #include "Responses/UpdateInventorySlotResponsePacket.h"
+#include "Responses/UseConsumableResponsePacket.h"
 #include "Responses/WorldEncryptionResponsePacket.h"
 
 #endif //__WORLD_RESPONSEPACKETS__
