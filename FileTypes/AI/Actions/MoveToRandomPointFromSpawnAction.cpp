@@ -21,3 +21,10 @@ void MoveToRandomPointFromSpawnPositionAction::performAction(AIContext& context)
 	npc->getStance()->setStanceById(travelStance);
 	npc->getLocationData()->getMapPosition()->setDestinationPositionVisually(std::move(PositionProcessor::generateRandomPointAroundPosition(sourcePosition, maxTravelDistance)));
 }
+
+std::shared_ptr<char> MoveToRandomPointFromSpawnPositionAction::toPrintable() const {
+	char *buffer = new char[0x90];
+	sprintf_s(buffer, 0x90, "[MoveToRandomPointFromSpawnPositionAction] Maximum travel distance: %.2f | Stance: %i", maxTravelDistance, travelStance);
+	std::shared_ptr<char> result = std::shared_ptr<char>(buffer, std::default_delete<char[]>());
+	return result;
+}

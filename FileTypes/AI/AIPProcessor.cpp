@@ -16,10 +16,26 @@ bool AIPProcessor::triggerProcess(AIEvent& eventType) {
 
 bool AIPProcessor::triggerProcess(AIEvent& eventType, Entity* designatedTarget) {
 	auto aiProtocol = npc->getArtificialIntelligence();
-	if (!aiProtocol || (triggerTimer.getPassedTimeInMillis() < aiProtocol->getCheckingIntervallInMilliseconds() && eventType == AIEvent::IDLE)) {
+	if (!aiProtocol) {
 		return false;
 	}
-	triggerTimer.updateTimestamp();
+	switch (eventType) {
+		case AIEvent::IDLE:
+			if (triggerTimer.getPassedTimeInMillis() < aiProtocol->getCheckingIntervallInMilliseconds()) {
+				return false;
+			}
+			triggerTimer.updateTimestamp();
+		break;
+		case AIEvent::DAMAGED:
+		{
+			NumericRandomizer<uint32_t> randomizer(0, 100);
+			if (npc->getCombat()->hasTarget() && randomizer.generateRandomValue() > aiProtocol->getChanceForTriggerOnDamaged()) {
+				return false;
+			}
+			logger.logDebug("OnDamaged Trigger passed chance-test");
+		}
+		break;
+	}
 	AIState* currentState = npc->getArtificialIntelligence()->getRecordsForEvent(eventType);
 	AIContext context(npc, eventType, designatedTarget);
 	for (uint32_t i = 0; i < currentState->getAmountOfRecords(); i++) {

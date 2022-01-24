@@ -12,6 +12,7 @@ public:
 	virtual ~MakeFamilyAttackSameTargetWithinDistanceAction();
 
 	virtual void performAction(AIContext& context);
+	virtual std::shared_ptr<char> toPrintable() const;
 };
 
 #endif 

@@ -12,6 +12,7 @@ public:
 	virtual ~MoveToRandomPointFromSpawnPositionAction();
 
 	virtual void performAction(AIContext& context);
+	virtual std::shared_ptr<char> toPrintable() const;
 
 };
 #endif //__ROSE_MOVE_TO_RANDOM_POINT_FROM_SPAWN_ACTION__

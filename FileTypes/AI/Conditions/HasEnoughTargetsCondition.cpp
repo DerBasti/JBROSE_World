@@ -29,11 +29,11 @@ bool HasEnoughTargetsCondition::isFulfilled(AIContext& context) {
 			if (!currentEntity->isIngame() || currentEntity->isDrop() || currentEntity == npc) {
 				continue;
 			}
+			float distance = PositionProcessor::getDistanceBetweenPoints(npc->getLocationData()->getMapPosition()->getCurrentPosition(), currentEntity->getLocationData()->getMapPosition()->getCurrentPosition());
 			int16_t levelDifference = npc->getStats()->getLevel() - currentEntity->getStats()->getLevel();
-			if (lowerLevelBoundry >= levelDifference && upperLevelBoundry <= levelDifference && npc->isAlliedTo(currentEntity) == alliedFlag) {
+			if (distance <= maxAllowedDistanceFromTarget && lowerLevelBoundry >= levelDifference && upperLevelBoundry <= levelDifference && npc->isAlliedTo(currentEntity) == alliedFlag) {
 				targetCount++;
 
-				float distance = PositionProcessor::getDistanceBetweenPoints(npc->getLocationData()->getMapPosition()->getCurrentPosition(), currentEntity->getLocationData()->getMapPosition()->getCurrentPosition());
 				if (distance <= lastNearestDistance) {
 					lastNearestDistance = distance;
 					context.setNearestTarget(currentEntity);
@@ -46,4 +46,11 @@ bool HasEnoughTargetsCondition::isFulfilled(AIContext& context) {
 		}
 	}
 	return false;
+}
+
+std::shared_ptr<char> HasEnoughTargetsCondition::toPrintable() const {
+	char *buffer = new char[0x100];
+	sprintf_s(buffer, 0x100, "[HasEnoughTargetsCondition] Maximum allowed distance: %.2f | Level difference boundries [%i, %i] | Check for allies: %i | Amount necessary: %i ", maxAllowedDistanceFromTarget, lowerLevelBoundry, upperLevelBoundry, alliedFlag, maximumOfFoundEntitiesNecessary);
+	std::shared_ptr<char> result = std::shared_ptr<char>(buffer, std::default_delete<char[]>());
+	return result;
 }

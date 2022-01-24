@@ -5,6 +5,8 @@
 #include "Map/MapSector.h"
 #include "..\JBROSE_Common\EncryptionHandler.h"
 #include "Map/MapRemovalRequest.h"
+#include "FileTypes/Quests/PlayerQuestJournal.h"
+#include "FileTypes/QSD.h"
 #include "Entities/Drop.h"
 #include "Entities/Monster.h"
 #include <iostream>
@@ -22,12 +24,14 @@ Player::Player(std::shared_ptr<ROSEClient>& networkInterface) {
 	packetHandler = new PlayerPacketHandler(networkInterface);
 	logger.setLoggerName("Player");
 
+	questJournal = new PlayerQuestJournal();
 	regenerationProcessor = new RegenerationProcessor(this);
 	stats = new PlayerStats();
 	traits = new PlayerTraits();
-	inventory = new Inventory();
+	inventory = new PlayerInventory();
 	attributes = new PlayerAttributeTypes();
 	visualityProcessor = new PlayerVisualityProcessor(this);
+	skillList = SkillList<140>(WorldServer::getInstance()->getSkillSTB());
 
 	getCombat()->setTeamId(EntityDefaultTeamId::PLAYER);
 
@@ -63,6 +67,8 @@ Player::~Player() {
 	delete stance;
 	stance = nullptr;
 
+	delete questJournal;
+	questJournal = nullptr;
 }
 
 void Player::onDisconnect() {
@@ -105,6 +111,7 @@ PlayerPacketHandler::PlayerPacketHandler(std::shared_ptr<ROSEClient>& networkCon
 	this->handleMethods.insert(std::make_pair(NewDestinationRequestPacket::ID, &PlayerPacketHandler::handleNewDestination));
 	this->handleMethods.insert(std::make_pair(PickupDropRequestPacket::ID, &PlayerPacketHandler::handlePickupDrop));
 	this->handleMethods.insert(std::make_pair(PingRequestPacket::ID, &PlayerPacketHandler::handleEmptyPacket));
+	this->handleMethods.insert(std::make_pair(QuestJournalUpdateRequestPacket::ID, &PlayerPacketHandler::handleQuestJournalUpdate));
 	this->handleMethods.insert(std::make_pair(ShowMonsterHpRequestPacket::ID, &PlayerPacketHandler::handleShowMonsterHp));
 	this->handleMethods.insert(std::make_pair(StanceRequestPacket::ID, &PlayerPacketHandler::handleStanceChange));
 	this->handleMethods.insert(std::make_pair(TelegateRequestPacket::ID, &PlayerPacketHandler::handleTelegateEntered));
@@ -173,7 +180,7 @@ bool Player::handleLevelup() {
 
 bool Player::sendLevelupToVisibleEntities() {
 	LevelupForSelfResponsePacket packetForSelf(this);
-	LevelupForOthersResponsePacket packetForOthers(getLocationData()->getLocalId());
+	auto packetForOthers = std::shared_ptr<LevelupForOthersResponsePacket>(new LevelupForOthersResponsePacket(getLocationData()->getLocalId()));
 
 	return this->getPacketHandler()->sendDataToClient(packetForSelf) && sendDataToVisibleExceptSelf(packetForOthers);
 }
@@ -210,7 +217,7 @@ bool PlayerPacketHandler::handleIdentification(Player* player, const Packet* pac
 
 	bool success = sendDataToClient(CharacterDataResponsePacket(player));
 	success &= sendDataToClient(InventoryResponsePacket(player->getInventory()));
-	success &= sendDataToClient(QuestDataResponsePacket());
+	success &= sendDataToClient(QuestDataResponsePacket(player->getQuestJournal()));
 	success &= sendDataToClient(GamingPlanResponsePacket());
 
 	return success;
@@ -376,9 +383,10 @@ bool PlayerPacketHandler::handleUseConsumableItem(Player* player, const Packet* 
 			consumeSuccessful = player->getRegenerationProcessor()->addConsumedItem(consumable);
 		break;
 		case ConsumableExecutionType::IMMEDIATE_APPLICATION:
-
+			consumeSuccessful = player->getRegenerationProcessor()->addImmediateUseItem(consumable);
 		break;
 		case ConsumableExecutionType::REPAIR_HAMMER:
+
 		break;
 		case ConsumableExecutionType::LEARN_SKILL:
 
@@ -387,11 +395,12 @@ bool PlayerPacketHandler::handleUseConsumableItem(Player* player, const Packet* 
 	if (!consumeSuccessful) {
 		return true;
 	}
-	UseConsumableResponsePacket response(player->getLocationData()->getLocalId(), item.getId());
+	auto response = std::shared_ptr<UseConsumableResponsePacket>(new UseConsumableResponsePacket(player->getLocationData()->getLocalId(), item.getId()));
 	player->sendDataToVisibleEntities(response);
 
-	response.setInventorySlotId(usePacket->getInventorySlot());
-	player->sendDataToSelf(response);
+	UseConsumableResponsePacket userResponse(player->getLocationData()->getLocalId(), item.getId());
+	userResponse.setInventorySlotId(usePacket->getInventorySlot());
+	player->sendDataToSelf(userResponse);
 	return true;
 }
 
@@ -414,10 +423,10 @@ bool PlayerPacketHandler::handleCollision(Player* player, const Packet* packet) 
 	player->getLocationData()->getMapPosition()->setCurrentPosition(collisionPacket->getCollisionPosition());
 	player->getLocationData()->getMapPosition()->setDestinationPosition(collisionPacket->getCollisionPosition());
 
-	CollisionResponsePacket response;
-	response.setEntityLocalId(player->getLocationData()->getLocalId());
-	response.setCollisionPosition(player->getLocationData()->getMapPosition()->getCurrentPosition());
-	response.setZ(collisionPacket->getZ());
+	auto response = std::shared_ptr<CollisionResponsePacket>(new CollisionResponsePacket());
+	response->setEntityLocalId(player->getLocationData()->getLocalId());
+	response->setCollisionPosition(player->getLocationData()->getMapPosition()->getCurrentPosition());
+	response->setZ(collisionPacket->getZ());
 
 	return player->sendDataToVisibleEntities(response);
 }
@@ -447,10 +456,10 @@ bool PlayerPacketHandler::handleStanceChange(Player* player, const Packet* packe
 		break;
 	}
 
-	StanceResponsePacket response;
-	response.setLocalEntityId(player->getLocationData()->getLocalId());
-	response.setMovementSpeed(player->getStats()->getMovementSpeed());
-	response.setStanceType(player->getStance()->getStanceId());
+	auto response = std::shared_ptr<StanceResponsePacket>(new StanceResponsePacket());
+	response->setLocalEntityId(player->getLocationData()->getLocalId());
+	response->setMovementSpeed(player->getStats()->getMovementSpeed());
+	response->setStanceType(player->getStance()->getStanceId());
 
 	return player->sendDataToVisibleEntities(response);
 }
@@ -467,10 +476,59 @@ bool PlayerPacketHandler::handleShowMonsterHp(Player* player, const Packet* pack
 	return success;
 }
 
+bool PlayerPacketHandler::handleQuestJournalUpdate(Player* player, const Packet* packet) {
+	const QuestJournalUpdateRequestPacket* requestPacket = dynamic_cast<const QuestJournalUpdateRequestPacket*>(packet);
+	
+	QuestJournalUpdateResult updateResult;
+	switch (requestPacket->getUpdateActionType()) {
+		case QuestJournalUpdateRequestAction::ADD_QUEST:
+		{
+			logger.logWarn("Adding quest requested without running a trigger...");
+			PlayerQuest* quest = new PlayerQuest(requestPacket->getQuestHash());
+			if(player->getQuestJournal()->addQuestToJournal(quest)) {
+				updateResult = QuestJournalUpdateResult::ADD_SUCCESSFUL;
+			}
+			else {
+				delete quest;
+				quest = nullptr;
+				updateResult = QuestJournalUpdateResult::ADD_FAILED;
+			}
+		}
+		break;
+		case QuestJournalUpdateRequestAction::DELETE_QUEST:
+			if (player->getQuestJournal()->deleteQuestWithQuestId(requestPacket->getQuestHash())) {
+				updateResult = QuestJournalUpdateResult::DELETE_SUCCESSFUL;
+			}
+			else {
+				updateResult = QuestJournalUpdateResult::DELETE_FAILED;
+			}
+		break;
+		case QuestJournalUpdateRequestAction::RUN_TRIGGER:
+			auto record = WorldServer::getInstance()->getQuestRecordWithQuestHash(requestPacket->getQuestHash());
+			if (!record) {
+				logger.logWarn("Invalid quest hash requested for QuestTrigger run by '", player->getName(), "'.");
+				return false;
+			}
+			if (player->handleQuestTriggerRun(record)) {
+				updateResult = QuestJournalUpdateResult::TRIGGER_RUN_SUCCESSFUL;
+			}
+			else {
+				updateResult = QuestJournalUpdateResult::TRIGGER_RUN_FAILED;
+			}
+		break;
+	}
+
+	QuestJournalUpdateResponsePacket response(updateResult);
+	response.setQuestHash(requestPacket->getQuestHash());
+	response.setQuestJournalSlot(requestPacket->getQuestJournalSlot());
+
+	return sendDataToClient(response);
+}
+
 bool PlayerPacketHandler::handleInitBasicAttack(Player* player, const Packet* packet) {
 	const InitBasicAttackRequestPacket* attackRequestPacket = dynamic_cast<const InitBasicAttackRequestPacket*>(packet);
 	Entity* newTarget = player->getVisualityProcessor()->findEntity(attackRequestPacket->getTargetLocalId());
-	if (newTarget == nullptr) {
+	if (newTarget == nullptr || newTarget->isAlliedTo(player)) {
 		return false;
 	}
 	player->getCombat()->clear();
@@ -481,11 +539,11 @@ bool PlayerPacketHandler::handleInitBasicAttack(Player* player, const Packet* pa
 bool PlayerPacketHandler::handleChangedEquipment(Player* player, const Packet* packet) {
 	const ChangeEquipmentRequestPacket* changePacket = dynamic_cast<const ChangeEquipmentRequestPacket*>(packet);
 	uint8_t destinationSlot = changePacket->getDestinationSlotId();
-	Inventory* inventory = player->getInventory();
+	PlayerInventory* inventory = player->getInventory();
 	if (changePacket->getDestinationSlotId() == 0x00) {
 		destinationSlot = inventory->getSlotForItem(inventory->getItem(changePacket->getSourceSlotId()));
 	}
-	if (destinationSlot <= 0 || destinationSlot >= Inventory::MAX_SLOTS) {
+	if (destinationSlot <= 0 || destinationSlot >= inventory->getMaxInventorySlots()) {
 		return true;
 	}
 
@@ -498,11 +556,10 @@ bool PlayerPacketHandler::handleChangedEquipment(Player* player, const Packet* p
 	UpdateInventorySlotsResponsePacket slotPacket;
 	slotPacket.addItemToUpdate(changePacket->getSourceSlotId(), inventory->getItem(changePacket->getSourceSlotId()));
 	slotPacket.addItemToUpdate(destinationSlot, inventory->getItem(destinationSlot));
-
-	ChangeEquipmentResponsePacket sourceSlotUpdatePacket(player, changePacket->getSourceSlotId());
-	ChangeEquipmentResponsePacket destinationSlotUpdatePacket(player, destinationSlot);
-
 	bool success = player->getPacketHandler()->sendDataToClient(slotPacket);
+
+	auto sourceSlotUpdatePacket = std::shared_ptr<ChangeEquipmentResponsePacket>(new ChangeEquipmentResponsePacket(player, changePacket->getSourceSlotId()));
+	auto destinationSlotUpdatePacket = std::shared_ptr<ChangeEquipmentResponsePacket>(new ChangeEquipmentResponsePacket(player, destinationSlot));
 	success &= player->sendDataToVisibleEntities(sourceSlotUpdatePacket);
 	success &= player->sendDataToVisibleEntities(destinationSlotUpdatePacket);
 

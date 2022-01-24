@@ -5,6 +5,7 @@
 #include "Drop.h"
 #include "../Map/Map.h"
 #include "..\WorldPackets\Responses\SpawnMonsterVisuallyResponsePacket.h"
+#include "..\FileTypes\QSD.h"
 #include "..\FileTypes\STB.h"
 #include "../../JBROSE_Common/DirectoryParser.h"
 #include "../Map/MonsterRecoveryPoint.h"
@@ -32,6 +33,7 @@ NPC::NPC(NPCDefaultStatValues* defaultValues, AIP* ai, const Position& spawnPosi
 	getStats()->setCurrentHp(defaultValues->getMaxHP());
 	getStats()->getCombatValues()->setAttackPower(defaultValues->getAttackPower());
 	getStats()->getCombatValues()->setDefense(defaultValues->getDefense());
+	getStats()->getCombatValues()->setAttackRange(defaultValues->getAttackRange());
 
 	visualityProcessor = new NPCVisualityProcessor(this);
 
@@ -69,8 +71,11 @@ void NPC::onDamageReceived(Entity* attacker, uint32_t damageAmount) {
 	logger.logDebug(getName(), "(#", getLocationData()->getLocalId(), ") received ", damageAmount, " damage from ", attacker->getName(), ".");
 }
 
+void NPC::onKill() {
+	updateAiProcessor(AIEvent::ENEMY_KILLED);
+}
+
 void NPC::onDeath() {
-	Entity::onDeath();
 	uint32_t totalExperience = getDefaultStatValues()->getExperiencePoints() * getDefaultStatValues()->getLevel();
 	Entity* lastAttacker = nullptr;
 	Entity* highestDamageAttacker = nullptr;
@@ -95,8 +100,15 @@ void NPC::onDeath() {
 	}
 	this->updateAiProcessor(AIEvent::DEATH, lastAttacker);
 	logger.logDebug(getName(), "(#", getLocationData()->getLocalId(), ") was killed.");
-	WorldServer::getInstance()->addDropFromNPC(this, getDefaultStatValues()->getLevel() - highestDamageAttacker->getStats()->getLevel());
+	if (highestDamageAttacker) {
+		WorldServer* server = WorldServer::getInstance();
+		auto questTrigger = server->getQuestRecordWithQuestHash(getDefaultStatValues()->getQuestHashAfterDeathTrigger());
+		dynamic_cast<Player*>(highestDamageAttacker)->handleQuestTriggerRun(questTrigger);
+		server->addDropFromNPC(this, getDefaultStatValues()->getLevel() - highestDamageAttacker->getStats()->getLevel());
+	}
 	getLocationData()->getMap()->addEntityToRemovalQueue(this, RemovalReason::MONSTER_DEATH);
+
+	Entity::onDeath();
 }
 
 void NPC::updateAiProcessor(AIEvent eventType, Entity* designatedTarget)
@@ -113,7 +125,12 @@ void NPC::onIdle() {
 }
 
 void NPC::onMoving() {
-	updateAiTriggerTime();
+	if (getCombat()->hasTarget()) {
+		updateAiProcessor(AIEvent::ATTACKING);
+	}
+	else {
+		updateAiTriggerTime();
+	}
 }
 
 void NPC::updateAttackPower() {
@@ -175,12 +192,13 @@ NPCDefaultStatValues::NPCDefaultStatValues(uint16_t id, STBEntry* entry) {
 	attackSpeed = entry->getColumnDataAsInt(14);
 	maxHp = level * hpPerLevel;
 	aiId = entry->getColumnDataAsInt(16);
+	experiencePoints = entry->getColumnDataAsInt(17);
 	dropItemRow = entry->getColumnDataAsInt(18);
 	dropMoneyChance = entry->getColumnDataAsInt(19);
 	dropItemChance = entry->getColumnDataAsInt(20);
-	attackRange = entry->getColumnDataAsInt(26);
+	attackRange = entry->getColumnDataAsInt(26) + 170;
 	npcFlag = entry->getColumnDataAsInt(27) == 999;
-	experiencePoints = entry->getColumnDataAsInt(17);
+	questHashUponDeath = QSDFile::makeHash(entry->getColumnData(41));
 }
 
 NPCDefaultStatValues::~NPCDefaultStatValues() {
@@ -204,7 +222,14 @@ void NPCCreationFactory::initializeFromSTB(STBFile* npcStbFile, STBFile* aiSTB) 
 	auto allEntries = npcStbFile->getAllEntries();
 	for (auto it = allEntries.cbegin(); it != allEntries.cend(); it++) {
 		auto entry = it->second;
-		npcDefaultStatValues.insert(std::make_pair(it->first, new NPCDefaultStatValues(it->first, entry)));
+		NPCDefaultStatValues* defaultStats = new NPCDefaultStatValues(it->first, entry);
+#ifdef _DEBUG
+		if (aiProtocols.find(defaultStats->getAiId()) != aiProtocols.cend()) {
+			AIP* ai = aiProtocols.at(defaultStats->getAiId());
+			ai->dump(defaultStats->getName());
+		}
+#endif
+		npcDefaultStatValues.insert(std::make_pair(it->first, defaultStats));
 	}
 	logger.logInfo("Finished loading NPC default values.");
 }

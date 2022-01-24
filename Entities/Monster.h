@@ -17,6 +17,10 @@ public:
 	__inline bool isMonster() const {
 		return true;
 	}
+
+	virtual bool isSummoned() const {
+		return false;
+	}
 };
 
 #endif //__ROSE_MONSTER__

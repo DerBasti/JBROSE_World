@@ -1,6 +1,7 @@
 #include "QSD.h"
 #include "Quests/QuestConditionFactory.h"
-#include "Quests/QuestActionFactory.h"
+#include "Quests/QuestRewardFactory.h"
+#include "../../JBROSE_Common/FileWriter.h"
 
 QSDFile::QSDFile(const char* filePath) {
 	FileInputReader reader(filePath);
@@ -18,13 +19,32 @@ QSDFile::QSDFile(const char* filePath) {
 			std::shared_ptr<char> blockName = reader.readStringWrapped(blockNameLength);
 
 			for (uint32_t j = 0; j < recordCount; j++) {
-				std::shared_ptr<QuestRecord> record = std::shared_ptr<QuestRecord>(new QuestRecord(reader));
+				std::shared_ptr<QuestRecord> record = std::shared_ptr<QuestRecord>(new QuestRecord(reader, blockName));
 				if (previousRecord && previousRecord->hasToCheckNextRecord()) {
 					previousRecord->setNextRecord(record);
 				}
 				previousRecord = record;
 				records.insert(std::make_pair(record->getQuestHash(), std::move(record)));
 			}
+		}
+		std::string fileName = std::string(filePath);
+		fileName = fileName.substr(fileName.find_last_of("\\") + 1);
+		std::string dumpPath = std::string("D:\\Games\\ROSE Server\\QSD_Dump\\" + fileName + std::string(".log"));
+		FileWriter fw(dumpPath.c_str());
+		for(auto it = records.begin();it!=records.end();it++) {
+			std::shared_ptr<QuestRecord> currentRecord = (*it).second;
+			char hexBuf[0x20] = { 0x00 };
+			sprintf_s(hexBuf, "0x%x", (*it).second->getQuestHash());
+			fw.writeToFile("Writing record ", currentRecord->getBlockName().get(), " with hash ", hexBuf, "\n");
+			fw.writeToFile("\nConditions:\n");
+			for (auto conditionIt = currentRecord->getConditions().begin(); conditionIt != currentRecord->getConditions().end();conditionIt++) {
+				fw.writeToFile((*conditionIt)->toPrintable().get(), "\n");
+			}
+			fw.writeToFile("\nActions:\n");
+			for (auto actIt = currentRecord->getActions().begin(); actIt != currentRecord->getActions().end(); actIt++) {
+				fw.writeToFile((*actIt)->toPrintable().get(), "\n");
+			}
+			fw.writeToFile("\n\n");
 		}
 	}
 }
@@ -34,6 +54,9 @@ QSDFile::~QSDFile() {
 }
 
 uint32_t QSDFile::makeHash(const char* qsdName) {
+	if (*qsdName == 0x00) {
+		return 0x00;
+	}
 	const unsigned __int32 keys[256] = {
 	0x697A5, 0x6045C, 0xAB4E2, 0x409E4, 0x71209, 0x32392, 0xA7292, 0xB09FC, 0x4B658, 0xAAAD5, 0x9B9CF, 0xA326A, 0x8DD12, 0x38150, 0x8E14D, 0x2EB7F,
 	0xE0A56, 0x7E6FA, 0xDFC27, 0xB1301, 0x8B4F7, 0xA7F70, 0xAA713, 0x6CC0F, 0x6FEDF, 0x2EC87, 0xC0F1C, 0x45CA4, 0x30DF8, 0x60E99, 0xBC13E, 0x4E0B5,
@@ -67,15 +90,16 @@ uint32_t QSDFile::makeHash(const char* qsdName) {
 	return result;
 }
 
-QuestRecord::QuestRecord(FileInputReader& reader) {
+QuestRecord::QuestRecord(FileInputReader& reader, std::shared_ptr<char> blockName) {
 	checkNextRecordFlag = reader.readByte() > 0;
 
 	uint32_t conditionAmount = reader.readUInt();
 	uint32_t actionAmount = reader.readUInt();
 	uint16_t recordNameLength = reader.readUShort();
 
+	this->blockName = blockName;
 	qsdName = reader.readStringWrapped(recordNameLength);
-	qsdId = QSDFile::makeHash(qsdName.get());
+	qsdHash = QSDFile::makeHash(qsdName.get());
 
 	readConditions(reader, conditionAmount);
 	readActions(reader, actionAmount);
@@ -91,7 +115,9 @@ void QuestRecord::readConditions(FileInputReader& reader, uint32_t conditionAmou
 		uint32_t length = reader.readUInt();
 		reader.resetCaretTo(reader.getCaret() - sizeof(uint32_t));
 		std::shared_ptr<char> rawData = reader.readStringWrapped(length);
-		conditions.push_back(std::move(QuestConditionFactory::createConditionFromRawData(rawData)));
+		std::unique_ptr<QuestCondition> data = QuestConditionFactory::createConditionFromRawData(rawData);
+		data->setQuestHash(getQuestHash());
+		conditions.push_back(std::move(data));
 	}
 }
 
@@ -100,9 +126,26 @@ void QuestRecord::readActions(FileInputReader& reader, uint32_t actionAmount) {
 		uint32_t length = reader.readUInt();
 		reader.resetCaretTo(reader.getCaret() - sizeof(uint32_t));
 		std::shared_ptr<char> rawData = reader.readStringWrapped(length);
-		actions.push_back(std::move(QuestActionFactory::createActionFromRawData(rawData)));
+		actions.push_back(std::move(QuestRewardFactory::createActionFromRawData(rawData)));
 	}
 }
+
+
+bool QuestRecord::conditionsFulfilled(QuestTriggerContext& context) {
+	for(auto it = conditions.begin(); it != conditions.end(); it++) {
+		if (!(*it)->isConditionFulfilled(context)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+void QuestRecord::handleRewards(QuestTriggerContext& context) {
+	for (auto it = actions.begin(); it != actions.end(); it++) {
+		(*it)->performAction(context);
+	}
+}
+
 
 QuestBlock::QuestBlock(std::shared_ptr<char> rawData) {
 	LoadedDataReader reader(rawData.get());

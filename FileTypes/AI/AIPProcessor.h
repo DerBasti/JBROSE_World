@@ -2,11 +2,13 @@
 #define __ROSE_AIP_PROCESSOR__
 
 #include "..\..\..\JBROSE_Common\Timer.h"
+#include "../../../JBROSE_Common/Logger.h"
 
 class AIPProcessor {
 private:
 	class NPC* npc;
 	Timer triggerTimer;
+	ROSEThreadedLogger logger;
 public:
 	AIPProcessor(class NPC* npc);
 	virtual ~AIPProcessor();

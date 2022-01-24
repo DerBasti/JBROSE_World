@@ -13,6 +13,8 @@ public:
 	virtual ~CompareAbilityValueOfEntityCondition() {}
 
 	virtual bool isFulfilled(AIContext& context);
+
+	virtual std::shared_ptr<char> toPrintable() const;
 };
 
 #endif //__ROSE_COMPARE_ABILITY_VALUE_OF_ENTITY_CONDITION__

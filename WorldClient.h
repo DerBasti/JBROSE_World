@@ -9,6 +9,7 @@
 #include "BasicTypes\Item.h"
 #include "BasicTypes/Inventory.h"
 #include "BasicTypes/Job.h"
+#include "BasicTypes/Skill.h"
 #include "WorldPackets/Responses/PickupDropResponsePacket.h"
 
 
@@ -16,6 +17,7 @@ class PlayerTraits {
 private:
 	char* name;
 	uint32_t characterId;
+	uint8_t birthStone;
 	uint8_t sex;
 	uint16_t savedSpotId;
 	uint32_t faceStyle;
@@ -25,6 +27,7 @@ public:
 	PlayerTraits() : job(Job::VISITOR) {
 		name = new char[0x20];
 		memset(name, 0x00, 0x20);
+		birthStone = 0;
 		characterId = 1;
 		sex = 0;
 		savedSpotId = 0;
@@ -50,6 +53,12 @@ public:
 	}
 	__inline void setName(const char* name) {
 		strncpy_s(this->name, 0x20, name, 0x1F);
+	}
+	__inline uint8_t getBirthstone() const {
+		return birthStone;
+	}
+	__inline void setBirthstone(uint8_t birthstone) {
+		this->birthStone = birthstone;
 	}
 
 	__inline uint8_t getSex() const {
@@ -82,7 +91,13 @@ public:
 	__inline const Job& getJob() const {
 		return job;
 	}
-	__inline void setJob(const Job job) {
+	__inline uint16_t getJobNumeric() const {
+		return static_cast<uint16_t>(job.getId());
+	}
+	__inline void setJobNumeric(uint16_t jobId) {
+		setJob(Job::getJobFromId(jobId));
+	}
+	__inline void setJob(const Job& job) {
 		this->job = job;
 	}
 };
@@ -183,6 +198,8 @@ class PlayerPacketHandler {
 private:
 	typedef typename bool (PlayerPacketHandler::*PacketHandlerMethod)(Player*, const Packet*) ;
 	std::shared_ptr<ROSEClient> networkConnection;
+	std::mutex queueMutex;
+	std::queue<std::shared_ptr<Packet>> packetQueue;
 	std::map<uint16_t, PacketHandlerMethod> handleMethods;
 	ROSEThreadedLogger logger;
 
@@ -203,6 +220,7 @@ protected:
 	bool handleInitBasicAttack(Player* player, const Packet* packet);
 	bool handleNewDestination(Player* player, const Packet* packet);
 	bool handlePickupDrop(Player* player, const Packet* packet);
+	bool handleQuestJournalUpdate(Player* player, const Packet* packet);
 	bool handleStanceChange(Player* player, const Packet* packet);
 	bool handleShowMonsterHp(Player* player, const Packet* packet);
 	bool handleTelegateEntered(Player* player, const Packet* packet);
@@ -217,7 +235,6 @@ public:
 	}
 
 	bool handlePacket(Player* player, const Packet* packet);
-
 	__inline bool sendDataToClient(const ResponsePacket& packet) const {
 		return getConnectionWrapper()->sendData(packet);
 	}
@@ -226,12 +243,14 @@ public:
 class Player : public Entity{
 private:
 	uint32_t accountId;
-	Inventory* inventory;
+	PlayerInventory* inventory;
 	RegenerationProcessor *regenerationProcessor;
 	PlayerTraits* traits;
 	PlayerAttributeTypes* attributes;
 	PacketFactory* packetFactory;
 	PlayerPacketHandler* packetHandler;
+	SkillList<140> skillList;
+	class PlayerQuestJournal* questJournal;
 	
 	class ZMO* attackAnimation;
 
@@ -273,7 +292,7 @@ public:
 		updateMaximumWeight();
 	}
 
-	__inline Inventory* getInventory() const {
+	__inline PlayerInventory* getInventory() const {
 		return inventory;
 	}
 	__inline PlayerTraits* getTraits() const {
@@ -290,6 +309,9 @@ public:
 	}
 	__inline RegenerationProcessor* getRegenerationProcessor() const {
 		return regenerationProcessor;
+	}
+	__inline PlayerQuestJournal* getQuestJournal() const {
+		return questJournal;
 	}
 
 	virtual bool sendDataToSelf(const ResponsePacket& packet) {

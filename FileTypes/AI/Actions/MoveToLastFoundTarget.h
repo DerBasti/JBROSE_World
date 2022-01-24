@@ -11,6 +11,7 @@ public:
 	virtual ~MoveToLastFoundTargetAction();
 
 	virtual void performAction(AIContext& context);
+	virtual std::shared_ptr<char> toPrintable() const;
 };
 
 #endif //__ROSE_MOVE_TO_LAST_FOUND_TARGET__

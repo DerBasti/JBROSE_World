@@ -20,6 +20,8 @@ private:
 	std::unordered_map<std::shared_ptr<ROSEClient>, Player*> worldClientList;
 	std::unordered_map<uint16_t, Telegate*> telegates;
 	std::unordered_map<uint32_t, ZMO*> attackAnimations;
+	std::mutex globalNpcListMutex;
+	std::unordered_map<uint16_t, NPC*> globalNpcList;
 	std::map<uint32_t, std::shared_ptr<class QuestRecord>> questRecords;
 	std::map<uint32_t, ZONFile*> zoneFiles;
 	std::vector<RestorePoint*> restorePoints;
@@ -32,6 +34,7 @@ private:
 	std::shared_ptr<STBFile> npcSTB;
 	std::shared_ptr<STBFile> warpSTB;
 	std::shared_ptr<STBFile> dropSTB;
+	std::shared_ptr<SkillSTBFile> skillSTB;
 	std::shared_ptr<ZoneSTBFile> zoneSTB;
 	std::shared_ptr<StatusSTBFile> statusSTB;
 	std::shared_ptr<EquipmentSTB*> equipmentSTBs;
@@ -53,8 +56,6 @@ private:
 	void loadTelegates(Map* map, const class IFOFile& file);
 
 	void extractTelegateFromIfo(std::vector<std::shared_ptr<IFOEntry>> &telegatesFromIfo, ZONFile* zonFile);
-
-	bool teleportPlayer(Player* player, Map* map, const Position& pos);
 
 	bool saveCharacterDataForCharacter(Player* player);
 	bool saveSkilledAttributesForCharacter(Player* player);
@@ -83,6 +84,7 @@ public:
 
 	bool saveCharacter(Player* player);
 	bool teleportPlayerFromTelegate(Player* player, const uint16_t telegateId);
+	bool teleportPlayer(Player* player, Map* map, const Position& pos);
 
 	bool addDropFromNPC(NPC* monster, int16_t levelDifferenceToKiller);
 
@@ -95,8 +97,17 @@ public:
 	__inline const ConsumeSTBFile* getConsumeSTB() const {
 		return dynamic_cast<const ConsumeSTBFile*>(equipmentSTBs.get()[ItemTypeList::CONSUMABLE.getTypeId()]);
 	}
+	__inline const SkillSTBFile* getSkillSTB() const {
+		return skillSTB.get();
+	}
+	__inline std::shared_ptr<class QuestRecord> getQuestRecordWithQuestHash(uint32_t questHash) {
+		return questRecords.find(questHash) != questRecords.cend() ? questRecords.at(questHash) : std::shared_ptr<class QuestRecord>();
+	}
 	__inline Map* getMapById(const uint16_t mapId) const {
 		return mapId < MAP_AMOUNT ? maps[mapId] : nullptr;
+	}
+	__inline NPC* getGlobalNpcById(uint16_t npcId) const {
+		return globalNpcList.at(npcId);
 	}
 	ZMO* getAttackAnimationForPlayer(Player* player) const;
 	ZMO* getAttackAnimationForNpc(NPC* npc) const;

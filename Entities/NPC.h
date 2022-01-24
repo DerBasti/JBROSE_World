@@ -25,6 +25,7 @@ private:
 	uint16_t walkingSpeed;
 	uint16_t runningSpeed;
 	uint32_t aiId;
+	uint32_t questHashUponDeath;
 public:
 	NPCDefaultStatValues(uint16_t id, class STBEntry* entry);
 	virtual ~NPCDefaultStatValues();
@@ -83,6 +84,9 @@ public:
 	__inline uint16_t getDropTableRowId() const {
 		return dropItemRow;
 	}
+	__inline uint32_t getQuestHashAfterDeathTrigger() const {
+		return questHashUponDeath;
+	}
 };
 
 class MonsterRecoveryPoint;
@@ -102,6 +106,7 @@ public:
 	static class NPC* createNpc(const uint32_t id, MonsterRecoveryPoint* spawn);
 	static class Monster* createMonster(const uint32_t id, const Position& spawnPosition);
 	static class Monster* createMonster(const uint32_t id, MonsterRecoveryPoint* spawn);
+	static class SummonedMonster* createSummonedMonster(const uint32_t id, const Position& spawnPosition, Entity* owner);
 
 	static NPCDefaultStatValues* getNPCDefaultValue(const uint32_t id) {
 		return (npcDefaultStatValues.find(id) == npcDefaultStatValues.cend() ? nullptr : npcDefaultStatValues.at(id));
@@ -120,6 +125,8 @@ private:
 	class AIPProcessor* aiProcessor;
 	class AIP* aiProtocol;
 	NPCDefaultStatValues* defaultStatValues;
+	uint32_t aiVariables[20];
+	uint32_t questVariables[20];
 protected:
 	virtual void updateAttackPower();
 	virtual void updateDefense();
@@ -137,6 +144,7 @@ public:
 	virtual void updateAttackAnimation();
 
 	virtual void onDamageReceived(Entity* attacker, uint32_t damageAmount);
+	virtual void onKill();
 	virtual void onDeath();
 	virtual void onIdle();
 	virtual void onMoving();
@@ -155,6 +163,20 @@ public:
 	}
 	__inline NPCDefaultStatValues* getDefaultStatValues() const {
 		return defaultStatValues;
+	}
+
+	__inline uint32_t getAIVariableBySlot(uint8_t slot) const {
+		return aiVariables[slot];
+	}
+	__inline void setAIVariableBySlot(uint8_t slot, uint32_t value) {
+		aiVariables[slot] = value;
+	}
+
+	__inline uint32_t getQuestVariableBySlot(uint8_t slot) const {
+		return questVariables[slot];
+	}
+	__inline void setQuestVariableBySlot(uint8_t slot, uint32_t value) {
+		questVariables[slot] = value;
 	}
 
 	__inline AIP* getArtificialIntelligence() const {

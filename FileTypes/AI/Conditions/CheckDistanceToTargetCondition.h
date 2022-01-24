@@ -6,7 +6,7 @@
 
 class CheckDistanceToTargetCondition : public AICondition {
 private:
-	uint32_t neededDistance;
+	float neededDistance;
 	CheckOperationType operation;
 public:
 	CheckDistanceToTargetCondition(std::shared_ptr<char>& datablock);
@@ -14,6 +14,8 @@ public:
 	virtual ~CheckDistanceToTargetCondition() {}
 
 	virtual bool isFulfilled(AIContext& context);
+
+	virtual std::shared_ptr<char> toPrintable() const;
 };
 
 #endif //__ROSE_CHECK_DISTANCE_TO_TARGET_CONDITION__

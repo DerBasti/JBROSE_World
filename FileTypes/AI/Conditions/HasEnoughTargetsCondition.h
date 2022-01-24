@@ -16,6 +16,8 @@ public:
 	virtual ~HasEnoughTargetsCondition() {}
 
 	bool isFulfilled(AIContext& context);
+
+	virtual std::shared_ptr<char> toPrintable() const;
 };
 
 #endif //__ROSE_HAS_ENOUGH_TARGETS_CONDITION__

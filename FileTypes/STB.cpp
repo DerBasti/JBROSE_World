@@ -61,15 +61,17 @@ STBEntry::STBEntry(FileReader& reader, uint32_t rowId, uint16_t columnAmount) {
 	valuesAsInt.reserve(columnAmount);
 	for (uint16_t i = 0; i < columnAmount; i++) {
 		uint16_t length = reader.readUShort();
-		auto stringData = reader.readStringWrapped(length);
+		auto stringData = reader.readString(length);
 		values.insert(std::move(std::make_pair(i, stringData)));
-		valuesAsInt.insert(std::move(std::make_pair(i, static_cast<uint32_t>(atol(stringData.get())))));
+		valuesAsInt.insert(std::move(std::make_pair(i, static_cast<uint32_t>(atol(stringData)))));
 	}
-
 }
 
 STBEntry::~STBEntry() {
-
+	for (auto valuePair : values) {
+		delete valuePair.second;
+	}
+	values.clear();
 }
 
 void STBEntry::updateTranslations(STLFile *file) {
@@ -79,6 +81,11 @@ void STBEntry::updateTranslations(STLFile *file) {
 	auto entry = file->getEntry(rowId);
 	if (entry) {
 		auto shortDescription = entry->getShortDescription();
-		values.at(0) = shortDescription;
+
+		const char* nonTranslatedDescription = values.at(0);
+		delete[] nonTranslatedDescription;
+
+		values.erase(values.begin());
+		values.insert(values.cbegin(), std::make_pair(0, shortDescription));
 	}
 }

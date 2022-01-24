@@ -16,6 +16,8 @@ public:
 	}
 	virtual ~HasEnoughDamageReceivedCondition() { }
 	virtual bool isFulfilled(AIContext& context);
+
+	virtual std::shared_ptr<char> toPrintable() const;
 };
 
 #endif //__ROSE_HAS_ENOUGH_DAMAGE_RECEIVED_CONDITION__

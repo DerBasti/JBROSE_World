@@ -23,3 +23,10 @@ bool StatSufficientCondition::isFulfilled(AIContext& context) {
 	uint16_t foundAbilityAmount = OperationHandler::getAIPAbilityValueOfEntity(context.getDesignatedTarget(), abilityType);
 	return OperationHandler::executeCheckOperation(foundAbilityAmount, abilityAmountNecessary, operation);
 }
+
+std::shared_ptr<char> StatSufficientCondition::toPrintable() const {
+	char *buffer = new char[0xA0];
+	sprintf_s(buffer, 0xA0, "[StatSufficientCondition] AbilityType: %s | Amount necessary: %i | Check Operation: %s", abilityType.getName(), abilityAmountNecessary, operation.getName());
+	std::shared_ptr<char> result = std::shared_ptr<char>(buffer, std::default_delete<char[]>());
+	return result;
+}

@@ -11,7 +11,7 @@ class STBEntry {
 private:
 	uint32_t rowId;
 	uint16_t columnAmount;
-	std::unordered_map <uint16_t, std::shared_ptr<char>> values;
+	std::unordered_map <uint16_t, const char*> values;
 	std::unordered_map <uint16_t, uint32_t> valuesAsInt;
 public:
 	STBEntry(class FileReader& reader, uint32_t rowId, uint16_t columnAmount);
@@ -20,7 +20,7 @@ public:
 	void updateTranslations(STLFile* translations);
 
 	__inline const char* getColumnData(const uint16_t column) const {
-		return values.at(column).get();
+		return values.at(column);
 	}
 	__inline uint32_t getColumnDataAsInt(const uint16_t column) const {
 		return valuesAsInt.at(column);
@@ -228,6 +228,55 @@ public:
 	}
 	__inline uint16_t getStatusStbReferenceOfEntry(uint16_t id) const {
 		return getValueOfEntry(id, STATUS_STB_REFERENCE_COLUMN);
+	}
+};
+
+class SkillSTBFile : public STBFile {
+private:
+	template<class _T = uint16_t>
+	__inline _T getValueOfEntry(uint16_t id, uint16_t type) const {
+		return static_cast<_T>(getEntry(id)->getColumnDataAsInt(type));
+	}
+public:
+	const static uint8_t BASIC_SKILL_ID_COLUMN = 0x01;
+	const static uint8_t SKILL_LEVEL_COLUMN = 0x02;
+	const static uint8_t REQUIRED_SKILLPOINTS_PER_LEVELUP_COLUMN = 0x03;
+	const static uint8_t SKILL_TYPE_COLUMN = 0x04;
+	const static uint8_t INITIALIZATION_RANGE_COLUMN = 0x06;
+	const static uint8_t APPLICABLE_TARGET_TYPE_COLUMN = 0x07;
+	const static uint8_t AOE_RANGE_COLUMN = 0x08;
+	const static uint8_t IS_HARMING_COLUMN = 0x0A;
+	const static uint8_t STATUS_TYPE_FIRST_COLUMN = 0x0B;
+	const static uint8_t STATUS_TYPE_SECOND_COLUMN = 0x0C;
+	const static uint8_t STATUS_SUCCESS_RATE_COLUMN = 0x0D;
+	const static uint8_t STATUS_DURATION_COLUMN = 0x0E;
+
+	SkillSTBFile(const char *filePath) : STBFile(filePath) {
+	
+	}
+	virtual ~SkillSTBFile() {
+
+	}
+	__inline uint16_t getBasicSkillId(uint16_t skillId) const {
+		return getValueOfEntry(skillId, BASIC_SKILL_ID_COLUMN);
+	}
+	__inline uint8_t getSkillLevel(uint16_t skillId) const {
+		return getValueOfEntry<uint8_t>(skillId, SKILL_LEVEL_COLUMN);
+	}
+	__inline uint16_t getRequiredSkillpointsPerLevelup(uint16_t skillId) const {
+		return getValueOfEntry(skillId, REQUIRED_SKILLPOINTS_PER_LEVELUP_COLUMN);
+	}
+	__inline uint16_t getSkillType(uint16_t skillId) const {
+		return getValueOfEntry(skillId, SKILL_TYPE_COLUMN);
+	}
+	__inline float getInitializationRange(uint16_t skillId) const {
+		return getValueOfEntry(skillId, INITIALIZATION_RANGE_COLUMN) * 100.0f;
+	}
+	__inline uint8_t getApplicableTargetType(uint16_t skillId) const {
+		return getValueOfEntry<uint8_t>(skillId, APPLICABLE_TARGET_TYPE_COLUMN);
+	}
+	__inline float getAoeRange(uint16_t skillId) const {
+		return getValueOfEntry(skillId, AOE_RANGE_COLUMN) * 100.0f;
 	}
 };
 

@@ -54,7 +54,7 @@ public:
 	ZMOFrame* getAllFrames() const {
 		return frames;
 	}
-	const ZMOFrame& getCurrentFrame() const {
+	const ZMOFrame& getTriggerFrame() const {
 		return frames[frameIndex];
 	}
 };

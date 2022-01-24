@@ -37,6 +37,9 @@ std::unordered_map<uint32_t, MapSector*> Map::findSurroundingSectors(MapSector* 
 	std::unordered_map<uint32_t, MapSector*> resultMap;
 	for (uint8_t i = 0; i < 9; i++) {
 		uint16_t id = surroundingSectors[i] + sector->getId();
+		if (id < 0 || id >= mapSectors.size()) {
+			continue;
+		}
 		resultMap.insert(std::make_pair(id, mapSectors.at(id)));
 	}
 	return resultMap;
@@ -62,8 +65,12 @@ bool Map::assignNewLocalId(Entity* entity) {
 }
 
 void Map::clearLocalId(Entity* entity) {
-	localIds[entity->getLocationData()->getLocalId()] = false;
+	clearLocalId(entity->getLocationData()->getLocalId());
 	entity->getLocationData()->setLocalId(0);
+}
+
+void Map::clearLocalId(uint16_t localId) {
+	localIds[localId] = false;
 }
 
 void Map::addMonsterSpawn(std::shared_ptr<IFOMonsterSpawnEntry> spawnEntry) {
@@ -110,6 +117,12 @@ void Map::addQueuedEntities() {
 	}
 	std::lock_guard<std::mutex> lock(entityInsertionMutex);
 	std::for_each(entityInsertionQueue.begin(), entityInsertionQueue.end(), [this](Entity* entity) {
+		logger.logDebug("Adding entity ", entity->getLocationData()->getLocalId(), " to map.");
+		entity->getPostionProcessor()->setUpdateRequiredFlag(true);
+		entity->getLocationData()->setMap(this);
+		entity->setIngame(true);
+		entity->updateCombatValues();
+
 		allEntities.insert(std::make_pair(entity->getLocationData()->getLocalId(), entity));
 		if (entity->isPlayer()) {
 			allPlayer.insert(std::make_pair(entity->getLocationData()->getLocalId(), dynamic_cast<Player*>(entity)));
@@ -117,10 +130,6 @@ void Map::addQueuedEntities() {
 		else if (entity->isNPC() || entity->isMonster()) {
 			dynamic_cast<NPC*>(entity)->updateAiProcessor(AIEvent::SPAWNED);
 		}
-		logger.logDebug("Adding entity ", entity->getLocationData()->getLocalId(), " to map.");
-		entity->getLocationData()->setMap(this);
-		entity->setIngame(true);
-		entity->updateCombatValues();
 	});
 	entityInsertionQueue.clear();
 }
@@ -140,11 +149,11 @@ bool Map::removeQueuedEntity(std::unordered_map<uint16_t, Entity*>::iterator& al
 				recoveryPoint->removeFromActivelySpawned(entity->getLocationData()->getLocalId());
 			}
 		}
-		request->getMapSector()->removeEntity(entity);
+		request->getMapSector()->removeEntity(request->getLocalId());
 
 		std::lock_guard<std::mutex> lock(entityRemovalMutex);
 		allEntityIteratorPosition = allEntities.erase(allEntityIteratorPosition);
-		clearLocalId(entity);
+		clearLocalId(request->getLocalId());
 		entityRemovalQueue.erase(request->getLocalId());
 	}
 	return removedFlag;
@@ -175,13 +184,27 @@ void Map::addEntityToRemovalQueue(Entity* entity, RemovalReason reason) {
 	if (entity == nullptr || !entity->isIngame() || entity->getLocationData()->getCurrentMapSector() == nullptr || entity->getLocationData()->getLocalId() == 0x00) {
 		return;
 	}
-	entity->getCombat()->clearSelfFromTargetsCombat();
+	entity->getCombat()->clearSelfFromBeingTargetedByOthers();
 	entity->getCombat()->clear();
 	entity->setIngame(false);
 	std::shared_ptr<RemovalRequest> removalRequest = RemovalRequestFactory::createRemovalRequest(entity, reason);
+	clearLocalId(entity);
 	std::lock_guard<std::mutex> lock(entityRemovalMutex);
 	entityRemovalQueue.insert(std::move(std::make_pair(removalRequest->getLocalId(), removalRequest)));
-	logger.logTrace("Added entity with id ", entity->getLocationData()->getLocalId(), " to removal queue.");
+	logger.logTrace("Added entity with id ", removalRequest->getLocalId(), " to removal queue.");
+}
+
+bool Map::sendDataToAllVisiblePlayerOfEntity(const Entity* entity, const std::shared_ptr<ResponsePacket>& packet) const {
+	return sendDataToAllVisiblePlayerOfEntityExcept(entity, packet, nullptr);
+}
+
+bool Map::sendDataToAllVisiblePlayerOfEntityExcept(const Entity* entity, const std::shared_ptr<ResponsePacket>& packet, const Player* playerNotToSendPacketTo) const {
+	auto visibleSectors = entity->getVisualityProcessor()->getVisibleSectors();
+	std::for_each(visibleSectors.begin(), visibleSectors.end(), [packet, playerNotToSendPacketTo](const std::pair<uint32_t, MapSector*>& pair) {
+		auto currentSector = pair.second;
+		currentSector->addPacketToDistributionQueue(packet, playerNotToSendPacketTo);
+	});
+	return true;
 }
 
 void Map::removeAllQueuedEntities() {
@@ -193,7 +216,7 @@ void Map::removeAllQueuedEntities() {
 		if (entity->isPlayer()) {
 			removePlayerFromRequest(request);
 		}
-		clearLocalId(entity);
+		clearLocalId(request->getLocalId());
 		entityRemovalQueue.erase(request->getLocalId());
 	});
 }
@@ -235,8 +258,16 @@ void Map::updateEntities() {
 		entity->onUpdate();
 		it++;
 	}
+	distributeVisualityChangePackets();
 	checkForMonsterRespawns();
 	updateMapTime();
+}
+
+void Map::distributeVisualityChangePackets() {
+	std::for_each(mapSectors.begin(), mapSectors.end(), [](const std::pair<uint32_t, MapSector*>& pair) {
+		MapSector* sector = pair.second;
+		sector->distributeVisualityChangePackets();
+	});
 }
 
 Entity* Map::findEntityByLocalId(const uint16_t id) const {
@@ -271,44 +302,16 @@ MapSector* Map::findBestSector(Entity* entity) const {
 }
 
 MapSector* Map::findBestSector(const Position& position) const {
-	uint16_t sectorX = static_cast<uint16_t>(std::roundf(static_cast<uint32_t>(position.getX() - SECTORS_START_COORDINATE) / SECTORS_SIZE));
+	Position positionDifference(position.getX() - SECTORS_START_COORDINATE, position.getY() - SECTORS_START_COORDINATE);
+	uint16_t sectorX = static_cast<uint16_t>(std::roundf(static_cast<uint32_t>(positionDifference.getX() < 0.0f ? 0.0f : positionDifference.getX()) / SECTORS_SIZE));
 	if (sectorX >= SECTORS_PER_AXIS) {
 		sectorX = SECTORS_PER_AXIS - 1;
 	}
-	uint16_t sectorY = static_cast<uint16_t>(std::roundf(static_cast<uint32_t>(position.getY() - SECTORS_START_COORDINATE) / SECTORS_SIZE));
+	uint16_t sectorY = static_cast<uint16_t>(std::roundf(static_cast<uint32_t>(positionDifference.getY() < 0.0f ? 0.0f : positionDifference.getY()) / SECTORS_SIZE));
 	if (sectorY >= SECTORS_PER_AXIS) {
 		sectorY = SECTORS_PER_AXIS - 1;
 	}
 
 	uint16_t id = sectorX + (sectorY * SECTORS_PER_AXIS);
 	return mapSectors.at(id);
-}
-
-MapTime::MapTime() {
-	totalDayTimeInSeconds = morningStartTimeInSeconds = noonStartTimeInSeconds = 0;
-	eveningStartTimeInSeconds = nightStartTimeInSeconds = 0;
-}
-
-MapTime::MapTime(ZoneSTBFile* file, uint16_t mapId) {
-	totalDayTimeInSeconds = file->getTotalDayTimeInSeconds(mapId) * 10;
-	mapTime.setDurationForWrappingInMillis(totalDayTimeInSeconds * 1000);
-
-	morningStartTimeInSeconds = file->getMorningStartTimeInSeconds(mapId) * 10;
-	noonStartTimeInSeconds = file->getNoonStartTimeInSeconds(mapId) * 10;
-	eveningStartTimeInSeconds = file->getEveningStartTimeInSeconds(mapId) * 10;
-	nightStartTimeInSeconds = file->getNightStartTimeInSeconds(mapId) * 10;
-}
-
-MapTimeType MapTime::getCurrentDayTimeType() const {
-	uint64_t currentTimeInSeconds = getCurrentTimeInSeconds();
-	if (currentTimeInSeconds >= nightStartTimeInSeconds) {
-		return MapTimeType::NIGHT_TIME;
-	}
-	else if (currentTimeInSeconds >= eveningStartTimeInSeconds) {
-		return MapTimeType::EVENING_TIME;
-	}
-	else if (currentTimeInSeconds >= noonStartTimeInSeconds) {
-		return MapTimeType::NOON_TIME;
-	}
-	return MapTimeType::MORNING_TIME;
 }

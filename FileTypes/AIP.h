@@ -72,6 +72,7 @@ private:
 	uint32_t operationCode;
 	uint32_t lengthOfOperationData;
 protected:
+	ROSEThreadedLogger logger;
 	__inline uint32_t getLengthTotal() const {
 		return length;
 	}
@@ -83,6 +84,7 @@ protected:
 	}
 public:
 	const static uint32_t DEFAULT_HEADER_LENGTH = sizeof(uint32_t) * 2;
+
 	AIDataBlock(std::shared_ptr<char>& datablock) {
 		uint32_t* intDataPointer = reinterpret_cast<uint32_t*>(datablock.get());
 		length = intDataPointer[0];
@@ -97,11 +99,18 @@ public:
 	}
 	virtual ~AIDataBlock() {
 	}
+
+	virtual std::shared_ptr<char> toPrintable() const {
+		char *buffer = new char[0x80];
+		sprintf_s(buffer, 0x80, "OpCode: 0x%08x | Length: %i", operationCode, length);
+		return std::shared_ptr<char>(buffer, std::default_delete<char[]>());
+	}
 };
 
 class AICondition : public AIDataBlock {
 public:
-	AICondition(std::shared_ptr<char>& datablock) : AIDataBlock(datablock) {}
+	AICondition(std::shared_ptr<char>& datablock) : AIDataBlock(datablock) {
+	}
 	AICondition(uint32_t operationCode, uint32_t length, const char* contextData) : AIDataBlock(operationCode, length, contextData) {}
 	virtual ~AICondition() {}
 
@@ -134,6 +143,13 @@ public:
 
 	bool conditionsFulfilled(AIContext& context);
 	void performAction(AIContext& context);
+
+	const std::vector<std::shared_ptr<AICondition>>& getConditions() const {
+		return conditions;
+	}
+	const std::vector<std::shared_ptr<AIAction>>& getActions() const {
+		return actions;
+	}
 };
 
 class AIState {
@@ -158,6 +174,7 @@ private:
 	uint32_t checkingIntervalInMilliseconds;
 	uint32_t damageAmountTillTrigger;
 	ROSEThreadedLogger logger;
+	std::shared_ptr<char> filePath;
 
 	const static uint32_t DEFAULT_STATE_AMOUNT = 0x06;
 	AIState** states;
@@ -170,8 +187,15 @@ public:
 		return states[eventId];
 	}
 
+	void dump();
+	void dump(const char* fileTitle);
+
 	__inline uint64_t getCheckingIntervallInMilliseconds() const {
 		return checkingIntervalInMilliseconds;
+	}
+
+	__inline uint32_t getChanceForTriggerOnDamaged() const {
+		return damageAmountTillTrigger;
 	}
 };
 

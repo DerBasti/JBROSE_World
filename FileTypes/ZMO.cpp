@@ -54,7 +54,7 @@ ZMOFrameContainer::~ZMOFrameContainer() {
 }
 ZMOFrameContainer& ZMOFrameContainer::operator=(const ZMOFrameContainer& other) {
 	if (frames) {
-		delete frames;
+		delete[] frames;
 	}
 	frameAmount = other.frameAmount;
 	frameIndex = 0;

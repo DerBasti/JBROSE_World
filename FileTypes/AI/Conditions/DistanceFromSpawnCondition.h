@@ -13,6 +13,7 @@ public:
 	virtual ~DistanceFromSpawnCondition();
 
 	virtual bool isFulfilled(AIContext& context);
+	virtual std::shared_ptr<char> toPrintable() const;
 };
 
 #endif //__ROSE_DISTANCE_FROM_SPAWN_CONDITION__

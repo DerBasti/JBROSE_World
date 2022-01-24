@@ -29,15 +29,15 @@ public:
 
 class STLEntry {
 	STLEntryHeader* header;
-	std::shared_ptr<char> shortDescription;
-	std::shared_ptr<char> description;
+	const char* shortDescription;
+	const char* description;
 public:
 
 	STLEntry(STLEntryHeader* header) {
 		this->header = header;
 	}
 
-	__inline void addShortAndRegularDescription(std::shared_ptr<char>& shortDescription, std::shared_ptr<char>& description) {
+	__inline void addShortAndRegularDescription(const char* shortDescription, const char* description) {
 		this->shortDescription = shortDescription;
 		this->description = description;
 	}
@@ -46,10 +46,10 @@ public:
 		return header;
 	}
 
-	__inline std::shared_ptr<char> getShortDescription() const {
+	__inline const char* getShortDescription() const {
 		return shortDescription;
 	}
-	__inline std::shared_ptr<char> getDescription() const {
+	__inline const char* getDescription() const {
 		return description;
 	}
 };
@@ -70,7 +70,7 @@ private:
 	std::vector<STLEntryHeader*> readAllEntryHeader(class FileReader& reader, const uint32_t &entryAmount);
 	std::vector<uint32_t> readLanguageOffsets(class FileReader& reader);
 	void readAllEntryBodies(FileReader& reader, std::vector<STLEntryHeader*>& header, std::vector<uint32_t>& languageOffsets);
-	std::shared_ptr<char> readDescriptionWithPossibleLengthOverflow(class FileReader& reader);
+	const char* readDescriptionWithPossibleLengthOverflow(class FileReader& reader);
 	ROSELogger logger;
 public:
 	STLFile(class FileReader& reader);

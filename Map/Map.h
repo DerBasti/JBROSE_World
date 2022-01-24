@@ -11,58 +11,14 @@
 #include "MapRemovalRequest.h"
 #include "MonsterRecoveryPoint.h"
 #include "../../JBROSE_Common/Timer.h"
-
-enum class MapTimeType : uint8_t {
-	MORNING_TIME,
-	NOON_TIME,
-	EVENING_TIME,
-	NIGHT_TIME
-};
-
-class MapTime {
-private:
-	uint16_t totalDayTimeInSeconds;
-	uint16_t morningStartTimeInSeconds;
-	uint16_t noonStartTimeInSeconds;
-	uint16_t eveningStartTimeInSeconds;
-	uint16_t nightStartTimeInSeconds;
-
-	WrappingTimer mapTime;
-public:
-	MapTime();
-	MapTime(class ZoneSTBFile* file, uint16_t mapId);
-	virtual ~MapTime() {}
-	MapTimeType getCurrentDayTimeType() const;
-
-	__inline uint16_t getTotalDayTimeInSeconds() const {
-		return totalDayTimeInSeconds;
-	}
-	__inline uint16_t getMorningStartTimeInSeconds() const {
-		return morningStartTimeInSeconds;
-	}
-	__inline uint16_t getNoonStartTimeInSeconds() const {
-		return noonStartTimeInSeconds;
-	}
-	__inline uint16_t getEveningStartTimeInSeconds() const {
-		return eveningStartTimeInSeconds;
-	}
-	__inline uint16_t getNightStartTimeInSeconds() const {
-		return nightStartTimeInSeconds;
-	}
-	__inline uint64_t getCurrentTimeInSeconds() const {
-		return mapTime.getPassedTimeInMillis() / 1000;
-	}
-	__inline uint64_t updateTime() {
-		return mapTime.updateTimestamp();
-	}
-};
+#include "MapTime.h"
 
 class Map {
 private:
 	const static uint8_t SECTORS_PER_AXIS = 40;
 	constexpr static float SECTORS_START_COORDINATE = 384000.0f;
 	constexpr static float SECTORS_SIZE = 6000.0f;
-	constexpr static float SECTOR_DISTANCE_NECESSARY = SECTORS_SIZE * 1.1f;
+	constexpr static float SECTOR_DISTANCE_NECESSARY = SECTORS_SIZE * 1.05f;
 	constexpr static int16_t surroundingSectors[] = {
 		(-SECTORS_PER_AXIS) - 1, (-SECTORS_PER_AXIS), (-SECTORS_PER_AXIS)+1,
 		-1, 0, 1,
@@ -92,8 +48,10 @@ private:
 	bool removeQueuedEntity(std::unordered_map<uint16_t, class Entity*>::iterator& allEntityIteratorPosition);
 	bool assignNewLocalId(Entity* entity);
 	void clearLocalId(Entity* entity);
+	void clearLocalId(uint16_t localId);
 	bool removePlayerFromRequest(std::shared_ptr<class RemovalRequest>& request);
 	void removeAllQueuedEntities();
+	void distributeVisualityChangePackets();
 
 	MapSector* findBestSector(const Position& position) const;
 public:
@@ -104,6 +62,9 @@ public:
 	void addMonsterSpawn(std::shared_ptr<IFOMonsterSpawnEntry> spawnEntry);
 	void addRestorePoints(std::vector<RestorePoint*> restorePoints);
 	void addEntityToRemovalQueue(Entity* entity, RemovalReason reason);
+
+	bool sendDataToAllVisiblePlayerOfEntity(const Entity* entity, const std::shared_ptr<ResponsePacket>& packet) const;
+	bool sendDataToAllVisiblePlayerOfEntityExcept(const Entity* entity, const std::shared_ptr<ResponsePacket>& packet, const class Player* playerNotToSendPacketTo) const;
 
 	void updateEntities();
 	void checkForMonsterRespawns();

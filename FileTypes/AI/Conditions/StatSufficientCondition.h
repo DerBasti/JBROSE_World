@@ -14,6 +14,7 @@ public:
 	virtual ~StatSufficientCondition();
 
 	virtual bool isFulfilled(AIContext& context);
+	virtual std::shared_ptr<char> toPrintable() const;
 };
 
 #endif //__ROSE_STAT_SUFFICIENT_CONDITION__

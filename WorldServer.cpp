@@ -95,7 +95,6 @@ void WorldServer::loadFileEntries() {
 	clock_t timeStart = clock();
 	logger.logInfo("Loading STBs...");
 	
-	npcSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_NPC.STB"));
 	aiSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\FILE_AI.STB"));
 	warpSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\WARP.STB"));
 	zoneSTB = std::shared_ptr<ZoneSTBFile>(new ZoneSTBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_ZONE.STB"));
@@ -109,7 +108,7 @@ void WorldServer::loadFileEntries() {
 		ptr = nullptr;
 	});
 	
-	const uint16_t stbThreadSize = 16;
+	const uint16_t stbThreadSize = 18;
 	std::thread stbThreads[stbThreadSize];
 
 	stbThreads[0] = std::thread([this]() {
@@ -159,6 +158,12 @@ void WorldServer::loadFileEntries() {
 	});
 	stbThreads[15] = std::thread([this]() {
 		statusSTB = std::shared_ptr<StatusSTBFile>(new StatusSTBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_STATUS.STB"));
+	});
+	stbThreads[16] = std::thread([this]() {
+		skillSTB = std::shared_ptr<SkillSTBFile>(new SkillSTBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_SKILL.STB"));
+	});
+	stbThreads[17] = std::thread([this]() {
+		npcSTB = std::shared_ptr<STBFile>(new STBFile("D:\\Games\\ROSE Server\\VFS_Extrator\\3DDATA\\STB\\LIST_NPC.STB"));
 	});
 	for (uint16_t i = 0; i < stbThreadSize; i++) {
 		stbThreads[i].join();
@@ -254,7 +259,6 @@ void WorldServer::createMaps() {
 					currentMap->updateEntities();
 					Sleep(16);
 				}
-				logger.logInfo("Finished start-up of Map[",zoneSTB->getEntry(mapId)->getColumnData(0), "].");
 			}
 		}, i);
 	}
@@ -279,9 +283,11 @@ void WorldServer::loadNPCs(Map* map, const IFOFile& file) {
 	auto npcs = file.getTypedEntry(IFOFile::BlockType::NPCLOCATION);
 	for (auto& npcEntry : npcs) {
 		const Position& pos = npcEntry->getPosition();
-		Entity* npc = NPCCreationFactory::createNpc(npcEntry->getObjectId(), pos);
+		NPC* npc = NPCCreationFactory::createNpc(npcEntry->getObjectId(), pos);
 		npc->getLocationData()->getMapPosition()->setDirection(npcEntry->getDirection());
 		map->addEntityToInsertionQueue(npc);
+		std::lock_guard<std::mutex> lock(globalNpcListMutex);
+		globalNpcList.insert(std::move(std::make_pair(npcEntry->getObjectId(), npc)));
 	}
 }
 
@@ -379,7 +385,7 @@ bool WorldServer::loadCharacterDataForCharacter(Player* player) {
 		playerTraits->setFaceStyle(row->getColumnDataAsInt(4));
 		playerTraits->setHairStyle(row->getColumnDataAsInt(5));
 
-		player->getLocationData()->setMap(maps[22]);
+		player->getLocationData()->setMap(maps[20]);
 		Position position = player->getLocationData()->getMap()->getDefaultRespawnPoint();
 		player->getLocationData()->getMapPosition()->setCurrentPosition(position);
 		player->getLocationData()->getMapPosition()->setDestinationPosition(position);
@@ -476,7 +482,7 @@ bool WorldServer::saveInventoryForCharacter(Player* player) {
 	logger.logDebug("Pruning character inventory...");
 	if (success) {
 		logger.logDebug("Saving player's inventory...");
-		for (uint8_t i = 0; i < Inventory::MAX_SLOTS;i++) {
+		for (uint8_t i = 0; i < player->getInventory()->getMaxInventorySlots();i++) {
 			success &= saveItemForPlayerInventory(player, i);
 		}
 		success &= saveMoneyForCharacter(player);
@@ -533,7 +539,9 @@ bool WorldServer::teleportPlayer(Player* player, Map* map, const Position& pos) 
 	response.setMapId(map->getId());
 	response.setPosition(pos);
 
-	locationData->getMap()->addEntityToRemovalQueue(player, RemovalReason::TELEPORT);
+	Map* oldMap = locationData->getMap();
+	oldMap->addEntityToRemovalQueue(player, RemovalReason::TELEPORT);
+
 	locationData->setMap(map);
 	locationData->setCurrentMapSector(nullptr);
 	locationData->getMapPosition()->setCurrentPosition(pos);
@@ -650,7 +658,7 @@ Item WorldServer::generateDrop(const uint16_t dropRowId, const uint16_t column) 
 		dropItem.setAmount(randomizer.generateRandomValue());
 	}
 	else {
-		randomizer.setBoundriesAndWeightDistribution(35, quality + 30, std::vector<double>{35.0, (double)quality});
+		randomizer.setBoundriesAndWeightDistribution(35, (std::min)(quality + 30, (uint32_t)120), std::vector<double>{35.0, (double)quality});
 		dropItem.setDurability(randomizer.generateRandomValue());
 	}
 	return dropItem;

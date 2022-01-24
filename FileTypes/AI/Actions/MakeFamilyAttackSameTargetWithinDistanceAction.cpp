@@ -37,3 +37,10 @@ void MakeFamilyAttackSameTargetWithinDistanceAction::performAction(AIContext& co
 		}
 	}
 }
+
+std::shared_ptr<char> MakeFamilyAttackSameTargetWithinDistanceAction::toPrintable() const {
+	char *buffer = new char[0x90];
+	sprintf_s(buffer, 0x90, "[MakeFamilyAttackSameTargetWithinDistanceAction] Check for same monster type within distance of: %.2f", maxDistanceAllowed);
+	std::shared_ptr<char> result = std::shared_ptr<char>(buffer, std::default_delete<char[]>());
+	return result;
+}

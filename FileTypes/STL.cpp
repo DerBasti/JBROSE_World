@@ -56,8 +56,8 @@ void STLFile::readAllEntryBodies(FileReader& reader, std::vector<STLEntryHeader*
 		}
 		for (uint32_t j = 0; j < entryAmount; j++) {
 			reader.resetCaretTo(stringOffsets.at(j));
-			std::shared_ptr<char> shortDescription = readDescriptionWithPossibleLengthOverflow(reader);
-			std::shared_ptr<char> actualDescription;
+			const char* shortDescription = readDescriptionWithPossibleLengthOverflow(reader);
+			const char* actualDescription = nullptr;
 			if (descriptionsFlag) {
 				actualDescription = readDescriptionWithPossibleLengthOverflow(reader);
 			}
@@ -68,11 +68,11 @@ void STLFile::readAllEntryBodies(FileReader& reader, std::vector<STLEntryHeader*
 		entries.insert(std::move(std::make_pair((STLLanguage)i, std::move(currentLanguageEntry))));
 	}
 }
-std::shared_ptr<char> STLFile::readDescriptionWithPossibleLengthOverflow(FileReader& reader) {
+const char* STLFile::readDescriptionWithPossibleLengthOverflow(FileReader& reader) {
 	uint16_t descriptionLength = reader.readByte();
 	if (descriptionLength >= 0x80) {
 		descriptionLength = reader.readByte() << 8 | descriptionLength;
 	}
-	std::shared_ptr<char> description = reader.readStringWrapped(descriptionLength);
+	char* description = reader.readString(descriptionLength);
 	return description;
 }
