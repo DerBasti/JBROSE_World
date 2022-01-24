@@ -91,11 +91,12 @@ private:
 	void checkRegenerationFromItems();
 	void checkRegenerationFromNaturalHealing();
 
+	/*
 	template<class _StatType>
 	void executeConsumableScript(_StatType(PlayerStats::*getFunction)() const, void (PlayerStats::*setFunction)(_StatType newValue), _StatType valueToUse, ResultOperationType resultOperation);
 	template<class _StatType>
 	void executeConsumableScript(_StatType(EntityStats::*getFunction)() const, void (EntityStats::*setFunction)(_StatType newValue), _StatType valueToUse, ResultOperationType resultOperation);
-
+	*/
 	const static uint16_t TIME_TILL_NATURAL_HEAL_IN_MILLIS = 8000;
 public:
 	RegenerationProcessor(class Player* player);
@@ -103,6 +104,7 @@ public:
 
 	void checkRegeneration();
 	bool addConsumedItem(std::unique_ptr<ConsumedItem>& newItem);
+	bool addImmediateUseItem(std::unique_ptr<ConsumedItem>& newItem);
 };
 
 #endif //__ROSE_REGENERATION_PROCESSOR__

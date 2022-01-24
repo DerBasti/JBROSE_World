@@ -162,6 +162,12 @@ enum class EntityAbilityTypeId : uint8_t {
 	MAX_HP,
 	MAX_MP,
 	MONEY,
+	PLANET_REQUIREMENT = 75,
+	STAMINA,
+	NO_STORAGE_CHARGE = 94,
+	STORAGE_EXPANSION,
+	PERSONAL_SHOP_REMODELLING,
+	CART_GAUGE,
 	UNKNOWN = 255
 };
 
@@ -216,7 +222,6 @@ public:
 	}
 };
 
-
 class OperationHandler {
 private:
 	OperationHandler() { }
@@ -266,7 +271,7 @@ public:
 	static _Type executeResultOperation(const _Type& left, const _Type& right, ResultOperationType operation) {
 		switch (operation) {
 			case ResultOperationTypeId::RETURN_OTHER_VALUE:
-				return _Type(right);
+				return right;
 			case ResultOperationTypeId::ADDITION:
 				return _Type(left + right);
 			case ResultOperationTypeId::SUBTRACTION:

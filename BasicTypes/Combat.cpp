@@ -20,6 +20,13 @@ CombatType::~CombatType() {
 
 }
 
+DamageHit::DamageHit(Entity* attacker, Entity* target, uint16_t damageAmount) {
+	this->attackerLocalId = attacker != nullptr ? attacker->getLocationData()->getLocalId() : 0;
+	this->targetLocalId = target != nullptr ? target->getLocationData()->getLocalId() : 0;
+	amount = damageAmount;
+	flag = 0;
+}
+
 Combat::Combat(Entity* owner) {
 	this->attackTimer.hardStop();
 	this->attackTimer.setDurationForProcInMillis(600);
@@ -49,7 +56,7 @@ void Combat::onMovementUpdate() {
 }
 
 void Combat::onTargetReached() {
-	if (getTarget() != nullptr && !getTarget()->isDrop()) {
+	if (hasTarget() && !getTarget()->isDrop()) {
 		attackTimer.restart();
 	}
 }
@@ -99,7 +106,7 @@ DamageHit Combat::doBasicAttack() {
 }
 
 bool Combat::isTargetInReach() const {
-	if (target == nullptr) {
+	if (!hasTarget()) {
 		return false;
 	}
 	float distance = PositionProcessor::getDistanceBetweenPoints(owner->getLocationData()->getMapPosition()->getCurrentPosition(),
@@ -132,6 +139,25 @@ void Combat::clear() {
 	attackTimer.softStop();
 }
 
+
+uint32_t Combat::calculateTotalAnimationPlaytimeForBasicAttack() {
+	float ratio = getAttackTimeRatio();
+	float totalAnimationTime = 1800 * ratio;
+	if (attackAnimation != nullptr && attackAnimation->isAttackAnimation()) {
+		totalAnimationTime = attackAnimation->getDefaultPlayTime() * ratio;
+	}
+	return (uint32_t)std::ceil(totalAnimationTime);
+}
+
+uint32_t Combat::calculateProcTimeForBasicAttack() {
+	float ratio = getAttackTimeRatio();
+	float procTime = 500 * ratio;
+	if (attackAnimation != nullptr && attackAnimation->isAttackAnimation()) {
+		procTime = attackAnimation->getAttackFrames().getTriggerFrame().getTriggerTimepointInMillis() * ratio;
+	}
+	return (uint32_t)std::ceil(procTime);
+}
+
 void Combat::onAttackspeedUpdate() {
 	if (!isAttackRunning()) {
 		return;
@@ -139,9 +165,8 @@ void Combat::onAttackspeedUpdate() {
 	switch (getCombatType()) {
 		case CombatTypeId::BASIC_ATTACK:
 		{
-			float ratio = getAttackTimeRatio();
-			this->attackTimer.setDurationForProcInMillis(static_cast<uint64_t>(attackAnimation->getAttackFrames().getCurrentFrame().getTriggerTimepointInMillis() * ratio));
-			this->attackTimer.setDurationForWrappingInMillis(static_cast<uint64_t>(attackAnimation->getDefaultPlayTime() * ratio));
+			this->attackTimer.setDurationForProcInMillis(calculateProcTimeForBasicAttack());
+			this->attackTimer.setDurationForWrappingInMillis(calculateTotalAnimationPlaytimeForBasicAttack());
 		}
 		break;
 		default:
@@ -157,16 +182,8 @@ void Combat::setAttackRoutine(std::function<bool()> proc) {
 		break;
 		case CombatTypeId::BASIC_ATTACK:
 		{
-			uint64_t totalTime = static_cast<uint64_t>(getAttackTimeInMilliseconds()) + 300;
-			uint64_t procTime = 500;
-			if (attackAnimation != nullptr) {
-				float ratio = getAttackTimeRatio();
-				procTime = static_cast<uint64_t>(attackAnimation->getAttackFrames().getCurrentFrame().getTriggerTimepointInMillis() * ratio);
-				totalTime = static_cast<uint64_t>(attackAnimation->getDefaultPlayTime() * ratio);
-			}
-			logger.logDebug("[", owner->getName(), " #", owner->getLocationData()->getLocalId(), "] Total time: ", totalTime, "ms. ProcTime: ", procTime, "ms.");
-			this->attackTimer.setDurationForProcInMillis(procTime);
-			this->attackTimer.setDurationForWrappingInMillis(totalTime);
+			this->attackTimer.setDurationForProcInMillis(calculateProcTimeForBasicAttack());
+			this->attackTimer.setDurationForWrappingInMillis(calculateTotalAnimationPlaytimeForBasicAttack());
 			attackTimer.setCombatProcMethod(proc);
 		}
 		break;
@@ -204,7 +221,7 @@ void Combat::setTarget(Entity* target, const CombatType& type) {
 		default:
 			logger.logWarn("Unknown attack type for SetTarget: ", getCombatType().getTypeId());
 	}
-	if (type != CombatType::NONE) {
+	if (type != CombatType::NONE && target != nullptr) {
 		this->owner->onNewTarget();
 	}
 }
@@ -223,7 +240,7 @@ void Combat::removeFromTargetedByList(Entity* entity) {
 	}
 }
 
-void Combat::clearSelfFromTargetsCombat() {
+void Combat::clearSelfFromBeingTargetedByOthers() {
 	if (targetedByMap.empty()) {
 		return;
 	}

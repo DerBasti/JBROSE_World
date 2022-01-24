@@ -6,11 +6,12 @@
 class CheckVariableQuestCondition : public QuestCondition {
 private:
 	uint32_t amountOfChecks;
-	QuestDataCheck* checks;
+	std::list<QuestDataCheck*> checks;
 public:
 	CheckVariableQuestCondition(std::shared_ptr<char>& rawData);
 	virtual ~CheckVariableQuestCondition();
-	virtual bool isConditionFulfilled() const;
+	virtual bool isConditionFulfilled(QuestTriggerContext& context) const;
+	virtual std::shared_ptr<char> toPrintable() const;
 };
 
 #endif //__ROSE_CHECK_VARIABLE_QUEST_CONDITION__

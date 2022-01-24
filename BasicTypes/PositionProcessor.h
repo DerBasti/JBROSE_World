@@ -17,6 +17,7 @@ private:
 	ROSEThreadedLogger logger;
 	MapPosition* position;
 	Timer timer;
+	bool forceUpdateRequiredFlag;
 	std::function<uint16_t()> movementSpeedFromEntityMethod;
 
 	__inline float getDistanceX() const {
@@ -36,6 +37,13 @@ public:
 	float getDistanceToDestination() const;
 	static Position generateRandomPointAroundPosition(const Position& center, float maxDistanceFromCenter);
 	static float getDistanceBetweenPoints(const Position& first, const Position& second);
+
+	__inline void setUpdateRequiredFlag(bool flag) {
+		forceUpdateRequiredFlag = flag;
+	}
+	__inline bool isUpdateRequired() const {
+		return forceUpdateRequiredFlag;
+	}
 };
 
 #endif //__ROSE_POSITION_PROCESSOR__

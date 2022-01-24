@@ -17,7 +17,7 @@ protected:
 public:
 	const static uint16_t ID = 0x716;
 
-	InventoryResponsePacket(class Inventory* inventory);
+	InventoryResponsePacket(class PlayerInventory* inventory);
 	virtual ~InventoryResponsePacket();
 };
 

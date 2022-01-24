@@ -22,24 +22,19 @@ private:
 
 	uint16_t amount;
 	uint16_t flag;
-	class Entity* attacker;
-	class Entity* target;
+	uint16_t attackerLocalId;
+	uint16_t targetLocalId;
 public:
 	DamageHit() : DamageHit(nullptr, nullptr, 0) {}
-	DamageHit(Entity* attacker, Entity* target, uint16_t damageAmount) {
-		this->attacker = attacker;
-		this->target = target;
-		amount = damageAmount;
-		flag = 0;
-	}
+	DamageHit(class Entity* attacker, class Entity* target, uint16_t damageAmount);
 	virtual ~DamageHit() {
 
 	}
-	__inline Entity* getAttacker() const {
-		return attacker;
+	__inline uint16_t getAttackerLocalId() const {
+		return attackerLocalId;
 	}
-	__inline Entity* getTarget() const {
-		return target;
+	__inline uint16_t getTargetLocalId() const {
+		return targetLocalId;
 	}
 	__inline uint16_t getDamageAmount() const {
 		return amount;
@@ -147,6 +142,7 @@ public:
 		if (isStopped()) {
 			onTimeWrap();
 		}
+		return timePassed;
 	}
 };
 
@@ -215,6 +211,9 @@ private:
 	ROSEThreadedLogger logger;
 	NumericRandomizer<uint32_t> randomizer;
 
+	uint32_t calculateTotalAnimationPlaytimeForBasicAttack();
+	uint32_t calculateProcTimeForBasicAttack();
+
 	void setAttackRoutine(std::function<bool()> proc);
 	float getAttackTimeInMilliseconds() const;
 	float getAttackTimeRatio() const;
@@ -257,6 +256,9 @@ public:
 	__inline Entity* getTarget() const {
 		return target;
 	}
+	__inline bool hasTarget() const {
+		return getTarget() != nullptr;
+	}
 	__inline uint32_t getTeamId() const {
 		return teamId;
 	}
@@ -283,7 +285,7 @@ public:
 	}
 
 	void setTarget(Entity* target, const CombatType& type);
-	void clearSelfFromTargetsCombat();
+	void clearSelfFromBeingTargetedByOthers();
 };
 
 

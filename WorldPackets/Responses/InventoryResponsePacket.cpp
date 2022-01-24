@@ -1,7 +1,7 @@
 #include "InventoryResponsePacket.h"
 #include "..\..\WorldClient.h"
 
-InventoryResponsePacket::InventoryResponsePacket(Inventory* inventory) : ResponsePacket(ID) {
+InventoryResponsePacket::InventoryResponsePacket(PlayerInventory* inventory) : ResponsePacket(ID) {
 	moneyAmount = inventory->getMoneyAmount();
 
 	for (uint8_t i = 1; i < 140; i++) {

@@ -103,6 +103,7 @@ protected:
 	}
 public:
 	NPCStance(std::function<void()> visualAndSpeedUpdateFunction) : Stance(visualAndSpeedUpdateFunction) {
+
 	}
 	virtual ~NPCStance() {}
 };

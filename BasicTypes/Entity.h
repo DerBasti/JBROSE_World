@@ -9,9 +9,9 @@
 #include "EntityStats.h"
 #include "Combat.h"
 #include "PositionProcessor.h"
+#include "OperationHandler.h"
 #include <type_traits>
 #include <map>
-
 
 class Entity {
 private:
@@ -58,7 +58,7 @@ public:
 		updateMaximumMp();
 	}
 	virtual void updateMovementSpeed() { }
-	virtual void updateAttackAnimation() { }
+	virtual void updateAttackAnimation() { }	
 
 	bool doAttack();
 	bool onNewTarget();
@@ -69,8 +69,11 @@ public:
 	virtual const char* getName() const;
 
 	virtual void onDamageReceived(Entity* attacker, uint32_t damageAmount) { }
+	virtual void onKill() {
+
+	}
 	virtual void onDeath() { 
-		getCombat()->clearSelfFromTargetsCombat();
+		getCombat()->clearSelfFromBeingTargetedByOthers();
 		getCombat()->clear();
 	}
 
@@ -79,9 +82,11 @@ public:
 	virtual bool despawnVisually(uint16_t entityId);
 	virtual bool updateStanceVisually();
 
-	virtual bool sendDataToEntityMap(const std::map<uint16_t, Entity*>& entityMap, const class ResponsePacket& packet) const;
-	virtual bool sendDataToVisibleEntities(const class ResponsePacket& packet) const;
-	virtual bool sendDataToVisibleExceptSelf(const class ResponsePacket& packet) const;
+	virtual bool sendDataToEntityMap(const std::map<uint16_t, Entity*>& entityMap, const std::shared_ptr<class ResponsePacket>& packet) const;
+	virtual bool sendDataToVisibleEntities(const std::shared_ptr<class ResponsePacket>& packet) const;
+	virtual bool sendDataToVisibleExceptSelf(const std::shared_ptr<class ResponsePacket>& packet) const;
+
+	virtual bool handleQuestTriggerRun(std::shared_ptr<class QuestRecord> record);
 
 	__inline LocationData* getLocationData() const {
 		return locationData;

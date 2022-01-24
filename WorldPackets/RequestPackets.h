@@ -17,6 +17,7 @@
 #include "Requests/NewDestinationRequestPacket.h"
 #include "Requests/PickDropRequestPacket.h"
 #include "Requests/PingRequestPacket.h"
+#include "Requests/QuestJournalUpdateRequestPacket.h"
 #include "Requests/ShowMonsterHpRequestPacket.h"
 #include "Requests/StanceRequestPacket.h"
 #include "Requests/TelegateRequestPacket.h"

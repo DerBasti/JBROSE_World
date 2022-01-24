@@ -22,6 +22,7 @@ public:
 PositionProcessor::PositionProcessor(MapPosition* pos, Combat* combat, std::function<uint16_t()> movementSpeedFromEntityMethod) : position(pos) {
 	this->movementSpeedFromEntityMethod = movementSpeedFromEntityMethod;
 	this->combat = combat;
+	forceUpdateRequiredFlag = false;
 }
 
 PositionProcessor::~PositionProcessor() {
@@ -32,10 +33,10 @@ PositionUpdateResult PositionProcessor::processNewPosition() {
 	Autocloser closer([&]() {
 		timer.updateTimestamp();
 	});
-	if (combat->isAttackRunning()) {
-		return combat->isTargetInReach() ? PositionUpdateResult::COMBAT_TARGET_REACHED : PositionUpdateResult::TARGET_REACHED;
+	if (combat->isAttackRunning() && combat->isTargetInReach()) {
+		return PositionUpdateResult::COMBAT_TARGET_REACHED;
 	}
-	if (combat->getTarget() != nullptr) {
+	if (combat->hasTarget()) {
 		Position newDestination(combat->getTarget()->getLocationData()->getMapPosition()->getCurrentPosition());
 		logger.logTrace("New Position of destination is: ", newDestination);
 		position->setDestinationPosition(std::move(newDestination));
@@ -56,7 +57,7 @@ PositionUpdateResult PositionProcessor::processNewPosition() {
 	float distanceMoved = (timePassed * movementSpeed / 1000.0f); //MovementSpeed
 	float totalDistance = getDistanceToDestination();
 	Position newCurrent;
-	if (distanceMoved >= totalDistance && combat->getTarget() == nullptr) {
+	if (distanceMoved >= totalDistance && !combat->hasTarget()) {
 		newCurrent = position->getDestinationPosition();
 		result = PositionUpdateResult::TARGET_REACHED;
 		if (combat->getEntitySelf()->isPlayer()) {
@@ -68,10 +69,6 @@ PositionUpdateResult PositionProcessor::processNewPosition() {
 
 		newCurrent = Position(position->getCurrentPosition().getX() + (ratios[0] * distanceMoved),
 			position->getCurrentPosition().getY() + (ratios[1] * distanceMoved));
-
-		if (combat->getEntitySelf()->isPlayer()) {
-			logger.logDebug("Position: ", newCurrent);
-		}
 	}
 	combat->onMovementUpdate();
 	position->setCurrentPosition(std::move(newCurrent));

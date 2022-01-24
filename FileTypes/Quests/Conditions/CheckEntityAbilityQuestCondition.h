@@ -10,7 +10,8 @@ private:
 public:
 	CheckEntityAbilityQuestCondition(std::shared_ptr<char>& rawData);
 	virtual ~CheckEntityAbilityQuestCondition();
-	virtual bool isConditionFulfilled() const;
+	virtual bool isConditionFulfilled(QuestTriggerContext& context) const;
+	virtual std::shared_ptr<char> toPrintable() const;
 };
 
 #endif //__ROSE_CHECK_ENTITY_ABILITY_QUESTION_CONDITION__

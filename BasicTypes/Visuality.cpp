@@ -27,6 +27,9 @@ std::shared_ptr<SpawnEntityVisuallyResponsePacket> VisualityProcessor::createSpa
 
 
 bool VisualityProcessor::updateVisuality() {
+	if (!isVisualityUpdateRequired()) {
+		return false;
+	}
 	auto locationData = getEntity()->getLocationData();
 	Map *map = locationData->getMap();
 	MapSector* newSector = locationData->getCurrentMapSector();

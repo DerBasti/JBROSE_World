@@ -3,22 +3,23 @@
 
 #include <cstdint>
 #include "CombatValues.h"
+#include "../../JBROSE_Common/WrappingNumeric.h"
 
 class EntityStats {
 private:
 	uint16_t level;
-	uint32_t currentHp;
-	uint32_t maxHp;
-	uint32_t currentMp;
-	uint32_t maxMp;
+	LimitingUInt healthPoints;
+	LimitingUInt manaPoints;
 	uint16_t movementSpeed;
 protected:
 	CombatValues *combatValues;
 public:
 	EntityStats() {
 		level = 1;
-		currentHp = currentMp = 100;
-		maxHp = maxMp = 100;
+		healthPoints.setMaximumLimit(100);
+		healthPoints = 100;
+		manaPoints.setMaximumLimit(100);
+		manaPoints = 100;
 		movementSpeed = 425;
 		combatValues = new CombatValues();
 	}
@@ -36,22 +37,19 @@ public:
 		this->level = level;
 	}
 	__inline uint32_t getMaxHp() const {
-		return maxHp;
+		return healthPoints.getMaximumLimit();
 	}
 	__inline void setMaxHp(uint32_t newMaxHp) {
-		this->maxHp = newMaxHp;
+		this->healthPoints.setMaximumLimit(newMaxHp);
 	}
 	__inline uint32_t getCurrentHp() const {
-		return currentHp;
+		return healthPoints;
 	}
 	__inline void addToCurrentHp(const uint32_t additionalHp) {
 		setCurrentHp(getCurrentHp() + additionalHp);
 	}
 	__inline void setCurrentHp(const uint32_t currentHp) {
-		this->currentHp = currentHp;
-		if (this->currentHp > getMaxHp()) {
-			this->currentHp = getMaxHp();
-		}
+		healthPoints = currentHp;
 	}
 	void decreaseCurrentHpBy(const uint32_t damageAmount) {
 		if (damageAmount >= getCurrentHp()) {
@@ -65,22 +63,19 @@ public:
 		return getCurrentHp() <= 0;
 	}
 	__inline uint32_t getCurrentMp() const {
-		return currentMp;
+		return manaPoints;
 	}
 	__inline void setCurrentMp(const uint32_t currentMp) {
-		this->currentMp = currentMp;
-		if (this->currentMp > getMaxMp()) {
-			this->currentMp = getMaxMp();
-		}
+		manaPoints = currentMp;
 	}
 	__inline void addToCurrentMp(const uint32_t additionalMp) {
 		setCurrentMp(getCurrentMp() + additionalMp);
 	}
 	__inline uint32_t getMaxMp() const {
-		return maxMp;
+		return manaPoints.getMaximumLimit();
 	}
 	__inline void setMaxMp(uint32_t newMaxMp) {
-		this->maxMp = newMaxMp;
+		this->manaPoints.setMaximumLimit(newMaxMp);
 	}
 	virtual void updateMaxHp() {
 
@@ -101,15 +96,17 @@ public:
 class PlayerStats : public EntityStats {
 private:
 	uint32_t experiencePoints;
-	uint16_t stamina;
+	LimitingUShort stamina;
 	uint16_t availableStatPoints;
 	uint16_t availableSkillPoints;
 	uint16_t maximumWeight;
+
+	const static uint16_t MAX_STAMINA = 5000;
 public:
 	PlayerStats() {
 		availableStatPoints = availableSkillPoints = 0;
-		experiencePoints = 0;
-		stamina = 5000;
+		experiencePoints = 300;
+		stamina = LimitingUShort(MAX_STAMINA, MAX_STAMINA);
 		maximumWeight = 1100;
 	}
 	__inline void addExperience(const uint32_t expGained) {

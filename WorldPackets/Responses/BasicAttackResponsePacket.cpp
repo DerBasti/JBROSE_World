@@ -10,14 +10,14 @@ BasicAttackResponsePacket::~BasicAttackResponsePacket() {
 }
 
 void BasicAttackResponsePacket::appendContentToSendable(SendablePacket& packet) const {
-	packet.addData(damageHit.getAttacker()->getLocationData()->getLocalId());
-	packet.addData(damageHit.getTarget()->getLocationData()->getLocalId());
+	packet.addData(damageHit.getAttackerLocalId());
+	packet.addData(damageHit.getTargetLocalId());
 	packet.addData(damageHit.getDamageAmount() & 0x7FF | damageHit.getHitFlag());
 }
 
 std::string BasicAttackResponsePacket::toPrintable() const {
 	char buf[0x300] = { 0x00 };
-	sprintf_s(buf, "[BasicAttackResponsePacket]\n\t* Attacker: %s (#%i)\n\t* Damagetaker: %s (#%i)\n\t* Damage amount: %i", damageHit.getAttacker()->getName(), damageHit.getAttacker()->getLocationData()->getLocalId(),
-		damageHit.getTarget()->getName(), damageHit.getTarget()->getLocationData()->getLocalId(), damageHit.getDamageAmount());
+	sprintf_s(buf, "[BasicAttackResponsePacket]\n\t* Attacker: #%i\n\t* Damagetaker: #%i\n\t* Damage amount: %i", damageHit.getAttackerLocalId(),
+		damageHit.getTargetLocalId(), damageHit.getDamageAmount());
 	return std::string(buf);
 }

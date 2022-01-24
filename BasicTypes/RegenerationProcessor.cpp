@@ -1,5 +1,6 @@
 #include "RegenerationProcessor.h"
 #include "../WorldClient.h"
+#include "../BasicTypes/EntityStatHandler.h"
 
 RegenerationProcessor::RegenerationProcessor(Player* player) {
 	this->player = player;
@@ -26,6 +27,7 @@ bool RegenerationProcessor::addConsumedItem(std::unique_ptr<ConsumedItem>& newIt
 		break;
 		case EntityAbilityTypeId::CURRENT_MP:
 			allowedToBeAdded = player->getStats()->getCurrentMp() < player->getStats()->getMaxMp();
+		break;
 	}
 	if (!allowedToBeAdded) {
 		return false;
@@ -35,6 +37,19 @@ bool RegenerationProcessor::addConsumedItem(std::unique_ptr<ConsumedItem>& newIt
 	return true;
 }
 
+bool RegenerationProcessor::addImmediateUseItem(std::unique_ptr<ConsumedItem>& newItem) {
+	switch (newItem->getInfluencedAbilityType()) {
+		case EntityAbilityTypeId::SKILL_POINTS:
+			player->getStats()->setAvailableSkillPoints(player->getStats()->getAvailableSkillPoints() + newItem->getMaximumValue());
+		break;
+		case EntityAbilityTypeId::STAMINA:
+			player->getStats()->setStamina(player->getStats()->getStamina() + newItem->getMaximumValue());
+		break;
+	}
+	return true;
+}
+
+/*
 template<class _StatType>
 void RegenerationProcessor::executeConsumableScript(_StatType(PlayerStats::*getFunction)() const, void (PlayerStats::*setFunction)(const _StatType newValue), _StatType valueToUse, ResultOperationType resultOperation) {
 	auto playerStats = player->getStats();
@@ -50,6 +65,7 @@ void RegenerationProcessor::executeConsumableScript(_StatType(EntityStats::*getF
 	_StatType result = OperationHandler::executeResultOperation(value, valueToUse, resultOperation);
 	(playerStats->*setFunction)(result);
 }
+*/
 
 void RegenerationProcessor::checkRegenerationFromItems() {
 	auto it = consumedItems.begin();
@@ -58,10 +74,16 @@ void RegenerationProcessor::checkRegenerationFromItems() {
 		if (amount > 0) {
 			switch ((*it)->getInfluencedAbilityType()) {
 				case EntityAbilityTypeId::CURRENT_HP:
-					executeConsumableScript<uint32_t>(&PlayerStats::getCurrentHp, &PlayerStats::setCurrentHp, amount, ResultOperationType::ADDITION);
+				{
+					auto hpGetterAndSetter = EntityStatHandler::getNumericGetterAndSetterOfEntityByEntityAbilityType<uint32_t>(player, EntityAbilityType::CURRENT_HP);
+					hpGetterAndSetter.set(hpGetterAndSetter.get() + amount);
+				}
 				break;
 				case EntityAbilityTypeId::CURRENT_MP:
-					executeConsumableScript<uint32_t>(&PlayerStats::getCurrentMp, &PlayerStats::setCurrentMp, amount, ResultOperationType::ADDITION);
+				{
+					auto mpGetterAndSetter = EntityStatHandler::getNumericGetterAndSetterOfEntityByEntityAbilityType<uint32_t>(player, EntityAbilityType::CURRENT_MP);
+					mpGetterAndSetter.set(mpGetterAndSetter.get() + amount);
+				}
 				break;
 			}
 		}

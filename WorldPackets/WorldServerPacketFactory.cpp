@@ -16,6 +16,7 @@ WorldServerPacketFactory::WorldServerPacketFactory() {
 	addCommand<NewDestinationRequestPacket>(NewDestinationRequestPacket::ID);
 	addCommand<PickupDropRequestPacket>(PickupDropRequestPacket::ID);
 	addCommand<PingRequestPacket>(PingRequestPacket::ID);
+	addCommand<QuestJournalUpdateRequestPacket>(QuestJournalUpdateRequestPacket::ID);
 	addCommand<ShowMonsterHpRequestPacket>(ShowMonsterHpRequestPacket::ID);
 	addCommand<StanceRequestPacket>(StanceRequestPacket::ID);
 	addCommand<TelegateRequestPacket>(TelegateRequestPacket::ID);

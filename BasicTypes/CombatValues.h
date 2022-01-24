@@ -8,6 +8,8 @@ private:
 	uint16_t attackPower;
 	uint16_t defense;
 	uint16_t magicDefense;
+	uint16_t accuracy;
+	uint16_t dodgeRate;
 	uint16_t critRate;
 	uint16_t attackSpeed;
 	uint32_t attackRange;
@@ -19,6 +21,8 @@ public:
 		critRate = 15;
 		attackSpeed = 115;
 		attackRange = 100;
+		accuracy = 50;
+		dodgeRate = 50;;
 	}
 	virtual ~CombatValues() {
 
@@ -47,6 +51,18 @@ public:
 	}
 	__inline void setCritRate(uint16_t newCritRate) {
 		critRate = newCritRate;
+	}
+	__inline uint16_t getAccuracy() const {
+		return accuracy;
+	}
+	__inline void setAccuracy(uint16_t newAccuracy) {
+		accuracy = newAccuracy;
+	}
+	__inline uint16_t getDodgeRate() const {
+		return dodgeRate;
+	}
+	__inline void setDodgeRate(const uint16_t dodgeRate) {
+		this->dodgeRate = dodgeRate;
 	}
 	__inline uint16_t getAttackSpeed() const {
 		return attackSpeed;

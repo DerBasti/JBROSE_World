@@ -1,5 +1,7 @@
 #include "QuestDataResponsePacket.h"
+#include "../../FileTypes/Quests/PlayerQuestJournal.h"
 
+/*
 QuestDataResponsePacket::QuestDataResponsePacket() : ResponsePacket(ID, DEFAULT_LENGTH) {
 	for (uint8_t i = 0; i < 10; i++) {
 		if (i < 3) {
@@ -50,5 +52,65 @@ void QuestDataResponsePacket::appendContentToSendable(SendablePacket& packet) co
 	}
 	for (uint8_t i = 0; i < 10; i++) {
 		packet.addData(globalQuestFlag[i]);
+	}
+}
+*/
+
+QuestDataResponsePacket::QuestDataResponsePacket(PlayerQuestJournal* journal) : ResponsePacket(ID, DEFAULT_LENGTH) {
+	this->journal = journal;
+}
+
+QuestDataResponsePacket::~QuestDataResponsePacket() {
+
+}
+
+void QuestDataResponsePacket::appendContentToSendable(SendablePacket& packet) const {
+	for (uint8_t i = 0; i < 5; i++) {
+		packet.addData(journal->getEpisodeVariableBySlot(i));
+	}
+	for (uint8_t i = 0; i < 3; i++) {
+		packet.addData(journal->getJobVariableBySlot(i));
+	}
+	for (uint8_t i = 0; i < 7; i++) {
+		packet.addData(journal->getPlanetVariableBySlot(i));
+	}
+	for (uint8_t i = 0; i < 10; i++) {
+		packet.addData(journal->getUnionVariableBySlot(i));
+	}
+
+	for (uint8_t i = 0; i < 10; i++) {
+		PlayerQuest* journalEntry = journal->getQuestByJournalSlot(i);
+		if (journalEntry != nullptr) {
+			packet.addData(journalEntry->getQuestId());
+			packet.addData(journalEntry->getTimePassed());
+
+			for (uint8_t j = 0; j < 10; j++) {
+				packet.addData(journalEntry->getQuestVariable(j));
+			}
+
+			packet.addData(journalEntry->getQuestLever());
+
+			for (uint8_t j = 0; j < journalEntry->getQuestInventory()->getMaxInventorySlots(); j++) {
+				packet.addData(ItemVisuality::toPacketHeader(journalEntry->getQuestInventory()->getItem(j)));
+				packet.addData(ItemVisuality::toPacketBody(journalEntry->getQuestInventory()->getItem(j)));
+			}
+		}
+		else {
+			packet.addData<uint16_t>(0x00);
+			packet.addData<uint32_t>(0x00);
+
+			for (uint8_t j = 0; j < 10; j++) {
+				packet.addData<uint16_t>(0x00);
+			}
+			packet.addData<uint32_t>(0x00);
+
+			for (uint8_t j = 0; j < 5; j++) {
+				packet.addData<uint16_t>(0x00);
+				packet.addData<uint32_t>(0x00);
+			}
+		}
+	}
+	for (uint8_t i = 0; i < 0x40; i++) {
+		packet.addData(journal->getGlobalFlagAsByte(i));
 	}
 }

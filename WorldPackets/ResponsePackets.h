@@ -18,6 +18,7 @@
 #include "Responses/LevelupForSelfResponsePacket.h"
 #include "Responses/NewDestinationResponsePacket.h"
 #include "Responses/QuestDataResponsePacket.h"
+#include "Responses/QuestJournalUpdateResponsePacket.h"
 #include "Responses/PickupDropResponsePacket.h"
 #include "Responses/ShowMonsterHpResponsePacket.h"
 #include "Responses/SpawnDropVisuallyResponsePacket.h"
